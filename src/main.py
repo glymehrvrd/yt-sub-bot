@@ -105,12 +105,14 @@ async def handle_message(update: Update, context: CallbackContext) -> None:
         if subtitle_path:
             await update.message.reply_document(document=open(subtitle_path, "rb"))
             os.remove(subtitle_path)  # Clean up after sending
-            logger.info("Subtitle sent and deleted")
+            logger.info("Subtitle sent and deleted.")
         else:
             await update.message.reply_text("Sorry, subtitles couldn't be retrieved.")
     except Exception as e:
         logger.error(f"Error occurred: {e}")
-        await update.message.reply_text("An error occurred while fetching subtitles. Please try again later.")
+        await update.message.reply_text(
+            "An error occurred while fetching subtitles. Please try again later. Error: {e}"
+        )
 
 
 def main():
