@@ -9,3 +9,4 @@ subtitles/
 *.txt
 .env
 .history/
+*_cookies.txt

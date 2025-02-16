@@ -13,15 +13,33 @@ TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 if not TOKEN:
     raise ValueError("No TELEGRAM_BOT_TOKEN found in environment variables")
 
+COOKIE_FILE = os.getenv("COOKIE_FILE")
+
 
 def convert_subtitle(filename: str):
+    """
+    Converts a VTT file to a plain text file with paragraphs.
+    """
     vtt = webvtt.read(filename)
     paragraph_list = []
     current_paragraph = ""
     previous_time = 0
+    previous_sentence = ""
+
+    # for each caption in the vtt file
     for caption in vtt:
         now = caption.start_in_seconds
-        text = caption.text.replace("\n", " ")
+        sentences = caption.text.split("\n")
+
+        # dedup sentences in caption
+        while len(sentences) != 0 and sentences[0] == previous_sentence:
+            sentences.pop(0)
+        if len(sentences) == 0:
+            continue
+        previous_sentence = sentences[0]
+
+        # join captions of interval less than 5 seconds into a paragraph
+        text = " ".join(sentences)
         if now - previous_time > 5:
             if current_paragraph != "":
                 paragraph_list.append(current_paragraph)
@@ -32,6 +50,9 @@ def convert_subtitle(filename: str):
                 current_paragraph += " " + text
             else:
                 current_paragraph = text
+    if current_paragraph != "":
+        paragraph_list.append(current_paragraph)
+
     return "\n".join(paragraph_list)
 
 
@@ -44,6 +65,7 @@ def download_subtitles(url: str) -> str:
         "subtitlesformat": "vtt",
         "outtmpl": "subtitles/%(id)s.%(ext)s",
         "quiet": True,
+        "cookiefile": COOKIE_FILE,
     }
 
     os.makedirs("subtitles", exist_ok=True)
@@ -58,9 +80,10 @@ def download_subtitles(url: str) -> str:
 
         if os.path.exists(subtitle_path):
             logger.info(f"Subtitles found: {subtitle_path}")
-            with open(f"{video_id}.txt", "w") as f:
+            with open(f"subtitles/{video_id}.txt", "w") as f:
                 f.write(convert_subtitle(subtitle_path))
-            return f"{video_id}.txt"
+            os.remove(subtitle_path)
+            return f"subtitles/{video_id}.txt"
         else:
             logger.warning("Subtitles not found.")
             return None
