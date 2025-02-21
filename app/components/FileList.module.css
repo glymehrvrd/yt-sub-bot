@@ -17,6 +17,10 @@
   border-radius: 4px;
 }
 
+.fileItem span {
+  text-align: left;
+}
+
 .fileActions {
   display: flex;
   gap: 0.5rem;
@@ -95,6 +99,7 @@
   background-color: #f5f5f5;
   padding: 1rem;
   border-radius: 4px;
+  text-align: left;
 }
 
 .noFiles {

@@ -25,7 +25,7 @@ def get_subtitle():
             logger.error("Missing URL parameter")
             return jsonify({"err": "URL is required"}), 400
 
-        split_by_chapter = request.args.get("splitByChapter", "false").lower() == "1"
+        split_by_chapter = request.args.get("splitByChapter", "false").lower() == "true"
 
         with open('www.youtube.com_cookies.txt', 'r') as f:
             cookie_contents = f.read()

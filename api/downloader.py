@@ -71,6 +71,16 @@ def get_chapter_info(info: dict, chapter_name: str) -> tuple:
     return None, None
 
 
+def sanitize_filename(filename: str) -> str:
+    """Sanitize filename to be filesystem-friendly."""
+    # Replace invalid characters with underscore
+    invalid_chars = '<>:"/\\|?*'
+    for char in invalid_chars:
+        filename = filename.replace(char, '_')
+    # Limit length and strip spaces
+    return filename.strip()[:100]
+
+
 def download_subtitles(url: str, cookie_contents: str = None, split_by_chapter: bool = False) -> list[str]:
     """Downloads subtitles from the given YouTube URL.
     
@@ -110,6 +120,7 @@ def download_subtitles(url: str, cookie_contents: str = None, split_by_chapter: 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 logger.info(f"Extracting info for URL: {url}")
                 info = ydl.extract_info(url)
+                video_title = sanitize_filename(info.get("title", ""))
                 video_id = info.get("id")
                 
                 requested_subtitles = info.get("requested_subtitles")
@@ -125,7 +136,7 @@ def download_subtitles(url: str, cookie_contents: str = None, split_by_chapter: 
                 output_dir.mkdir(parents=True, exist_ok=True)
 
                 if not split_by_chapter:
-                    output_path = output_dir / f"{video_id}.txt"
+                    output_path = output_dir / f"{video_title}.txt"
                     with open(output_path, "w") as f:
                         f.write(convert_subtitle(subtitle_path))
                     os.remove(subtitle_path)
@@ -135,7 +146,7 @@ def download_subtitles(url: str, cookie_contents: str = None, split_by_chapter: 
                 chapters = info.get('chapters', [])
                 if not chapters:
                     logger.warning("No chapters found, returning full subtitles")
-                    output_path = output_dir / f"{video_id}.txt"
+                    output_path = output_dir / f"{video_title}.txt"
                     with open(output_path, "w") as f:
                         f.write(convert_subtitle(subtitle_path))
                     os.remove(subtitle_path)
@@ -148,7 +159,7 @@ def download_subtitles(url: str, cookie_contents: str = None, split_by_chapter: 
                         chapters[i + 1]['start_time'] if i + 1 < len(chapters) else None
                     )
                     chapter_name = chapter['title'].replace(' ', '_')
-                    output_path = output_dir / f"{video_id}_{chapter_name}.txt"
+                    output_path = output_dir / f"{video_title}_{chapter_name}.txt"
                     
                     with open(output_path, "w") as f:
                         f.write(convert_subtitle(subtitle_path, start_time, end_time))
