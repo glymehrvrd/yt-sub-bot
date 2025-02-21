@@ -4,7 +4,7 @@ import { useState } from 'react';
 import FileList from './FileList';
 import styles from './UrlForm.module.css';
 import { FileData } from '../types/files';
-import { fetchSubtitles } from '../services/api';
+import { fetchSubtitle } from '../services/api';
 
 export default function UrlForm() {
   const [url, setUrl] = useState('');
@@ -17,10 +17,10 @@ export default function UrlForm() {
       alert('Please enter URL');
       return;
     }
-    
+
     setLoading(true);
     try {
-      const response = await fetchSubtitles(url, isChecked);
+      const response = await fetchSubtitle(url, isChecked);
       setFiles(response?.data?.files || []);
     } catch (error) {
       console.error('Request failed:', error);
@@ -41,7 +41,7 @@ export default function UrlForm() {
           className={styles.urlInput}
         />
       </div>
-      
+
       <div className={styles.checkboxGroup}>
         <label className={styles.checkboxLabel}>
           <input
@@ -53,7 +53,7 @@ export default function UrlForm() {
           <span className={styles.checkboxText}>Split by chapters</span>
         </label>
       </div>
-      
+
       <button
         onClick={handleSubmit}
         disabled={loading}

@@ -1,30 +1,24 @@
 import { FileData } from '../types/files';
-import { mockFiles } from '../mocks/fileData';
 
 interface ApiResponse {
-  files: FileData[];
+  err?: string;
+  data?: {
+    files?: FileData[];
+  };
 }
 
-export async function fetchSubtitles(url: string, splitByChapter: boolean): Promise<ApiResponse> {
-  if (process.env.NODE_ENV === 'development') {
-    // Simulate API delay in development
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    return { files: mockFiles };
+export async function fetchSubtitle(url: string, splitByChapter: boolean): Promise<ApiResponse> {
+  const response = await fetch(`/api/subtitle?url=${encodeURIComponent(url)}&splitByChapter=${splitByChapter}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const data = await response.json();
+  if (!response.ok || 'err' in data) {
+    throw new Error(data.err || 'Network response was not ok');
   }
 
-  const response = await fetch(
-    `https://api.example.com/subtitles?url=${encodeURIComponent(url)}&splitByChapter=${splitByChapter}`,
-    {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error('Network response was not ok');
-  }
-
-  return response.json();
+  return data;
 }

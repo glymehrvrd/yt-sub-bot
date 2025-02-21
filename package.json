@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "fastapi-dev": "pipenv lock && python -m flask --app api/index run -p 5328",
+    "fastapi-dev": "pipenv sync && pipenv run python -m flask --app api/index run -p 5328",
     "next-dev": "next dev",
     "dev": "concurrently \"npm run next-dev\" \"npm run fastapi-dev\"",
     "build": "next build",
