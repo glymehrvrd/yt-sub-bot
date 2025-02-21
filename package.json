@@ -1,0 +1,25 @@
+{
+  "name": "yt-sub-bot",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "fastapi-dev": "pipenv lock && python -m flask --app api/index run -p 5328",
+    "next-dev": "next dev",
+    "dev": "concurrently \"npm run next-dev\" \"npm run fastapi-dev\"",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^14.2.13"
+  },
+  "devDependencies": {
+    "@types/node": "22.5.5",
+    "@types/react": "18.3.8",
+    "@types/react-dom": "18.3.0",
+    "concurrently": "^9.0.1",
+    "typescript": "~5.7.2",
+    "eslint": "8.41.0",
+    "eslint-config-next": "13.4.4"
+  }
+}
