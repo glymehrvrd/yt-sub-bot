@@ -98,7 +98,9 @@ def download_subtitles(url: str, cookie_contents: str = None, split_by_chapter: 
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_dir_path = Path(temp_dir)
         temp_subtitles_dir = temp_dir_path / "subtitles"
+        temp_cache_dir = temp_dir_path / "cache"
         temp_subtitles_dir.mkdir(exist_ok=True)
+        temp_cache_dir.mkdir(exist_ok=True)
 
         ydl_opts = {
             "writesubtitles": True,
@@ -107,6 +109,7 @@ def download_subtitles(url: str, cookie_contents: str = None, split_by_chapter: 
             "subtitlesformat": "vtt",
             "outtmpl": str(temp_subtitles_dir / "%(id)s.%(ext)s"),
             "quiet": True,
+            "cachedir": str(temp_cache_dir),
         }
 
         # Only add cookie handling if cookie_contents is provided
