@@ -21,7 +21,7 @@ def convert_subtitle(filename: str, chapter_start: float = None, chapter_end: fl
 
     for caption in vtt:
         now = caption.start_in_seconds
-        
+
         # Skip if outside chapter bounds
         if chapter_start is not None and now < chapter_start:
             continue
@@ -60,13 +60,13 @@ def get_chapter_info(info: dict, chapter_name: str) -> tuple:
     Extracts start and end time for a specific chapter.
     Returns (start_time, end_time) in seconds.
     """
-    chapters = info.get('chapters', [])
+    chapters = info.get("chapters", [])
     for i, chapter in enumerate(chapters):
-        if chapter['title'].lower() == chapter_name.lower():
-            start_time = chapter['start_time']
-            end_time = chapter['end_time'] if 'end_time' in chapter else None
+        if chapter["title"].lower() == chapter_name.lower():
+            start_time = chapter["start_time"]
+            end_time = chapter["end_time"] if "end_time" in chapter else None
             if end_time is None and i + 1 < len(chapters):
-                end_time = chapters[i + 1]['start_time']
+                end_time = chapters[i + 1]["start_time"]
             return start_time, end_time
     return None, None
 
@@ -76,19 +76,19 @@ def sanitize_filename(filename: str) -> str:
     # Replace invalid characters with underscore
     invalid_chars = '<>:"/\\|?*'
     for char in invalid_chars:
-        filename = filename.replace(char, '_')
+        filename = filename.replace(char, "_")
     # Limit length and strip spaces
     return filename.strip()[:100]
 
 
 def download_subtitles(url: str, cookie_contents: str = None, split_by_chapter: bool = False) -> list[str]:
     """Downloads subtitles from the given YouTube URL.
-    
+
     Args:
         url: YouTube video URL
         cookie_contents: Optional cookie contents for private videos
         split_by_chapter: If True, splits subtitles by chapters
-    
+
     Returns:
         list[str]: List of paths to subtitle files. Contains single item if split_by_chapter=False
     """
@@ -125,7 +125,7 @@ def download_subtitles(url: str, cookie_contents: str = None, split_by_chapter: 
                 info = ydl.extract_info(url)
                 video_title = sanitize_filename(info.get("title", ""))
                 video_id = info.get("id")
-                
+
                 requested_subtitles = info.get("requested_subtitles")
                 subtitle_info = next(iter(requested_subtitles.values()))
                 subtitle_path = subtitle_info.get("filepath")
@@ -144,9 +144,9 @@ def download_subtitles(url: str, cookie_contents: str = None, split_by_chapter: 
                         f.write(convert_subtitle(subtitle_path))
                     os.remove(subtitle_path)
                     return [str(output_path)]
-                
+
                 # Split by chapters
-                chapters = info.get('chapters', [])
+                chapters = info.get("chapters", [])
                 if not chapters:
                     logger.warning("No chapters found, returning full subtitles")
                     output_path = output_dir / f"{video_title}.txt"
@@ -157,13 +157,15 @@ def download_subtitles(url: str, cookie_contents: str = None, split_by_chapter: 
 
                 chapter_files = []
                 for i, chapter in enumerate(chapters):
-                    start_time = chapter['start_time']
-                    end_time = chapter['end_time'] if 'end_time' in chapter else (
-                        chapters[i + 1]['start_time'] if i + 1 < len(chapters) else None
+                    start_time = chapter["start_time"]
+                    end_time = (
+                        chapter["end_time"]
+                        if "end_time" in chapter
+                        else (chapters[i + 1]["start_time"] if i + 1 < len(chapters) else None)
                     )
-                    chapter_name = chapter['title'].replace(' ', '_')
+                    chapter_name = chapter["title"].replace(" ", "_")
                     output_path = output_dir / f"{video_title}_{chapter_name}.txt"
-                    
+
                     with open(output_path, "w") as f:
                         f.write(convert_subtitle(subtitle_path, start_time, end_time))
                     chapter_files.append(str(output_path))

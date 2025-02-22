@@ -14,6 +14,7 @@
   padding: 0.5rem;
   border: 1px solid #ccc;
   border-radius: 4px;
+  font-size: 16px; /* Minimum font size to prevent iOS zoom */
 }
 
 .checkboxGroup {
@@ -29,7 +30,12 @@
   cursor: pointer;
 }
 
+.checkboxInput {
+  font-size: 16px; /* Minimum font size to prevent iOS zoom */
+}
+
 .submitButton {
+  width: 100%;
   padding: 0.5rem 1rem;
   background-color: #0070f3;
   color: white;

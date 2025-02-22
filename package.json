@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "scripts": {
     "fastapi-dev": "pipenv sync && pipenv run python -m flask --app api/index run -p 5328",
-    "next-dev": "next dev",
+    "next-dev": "next dev -H 0.0.0.0",
     "dev": "concurrently \"npm run next-dev\" \"npm run fastapi-dev\"",
     "build": "next build",
     "start": "next start",
