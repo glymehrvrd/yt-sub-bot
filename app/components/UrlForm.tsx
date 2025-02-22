@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState } from 'react';
 import FileList from './FileList';
@@ -8,6 +8,7 @@ import { fetchSubtitle } from '../services/api';
 export default function UrlForm() {
   const [url, setUrl] = useState('');
   const [isChecked, setIsChecked] = useState(false);
+  const [preferChinese, setPreferChinese] = useState(false);
   const [files, setFiles] = useState<FileData[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -19,7 +20,7 @@ export default function UrlForm() {
 
     setLoading(true);
     try {
-      const response = await fetchSubtitle(url, isChecked);
+      const response = await fetchSubtitle(url, isChecked, preferChinese);
       setFiles(response?.data?.files || []);
     } catch (error) {
       console.error('Request failed:', error);
@@ -41,7 +42,7 @@ export default function UrlForm() {
         />
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4">
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
@@ -50,6 +51,16 @@ export default function UrlForm() {
             className="w-4 h-4 text-blue-600"
           />
           <span>Split by chapters</span>
+        </label>
+
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={preferChinese}
+            onChange={(e) => setPreferChinese(e.target.checked)}
+            className="w-4 h-4 text-blue-600"
+          />
+          <span>Prefer Chinese subtitles</span>
         </label>
       </div>
 

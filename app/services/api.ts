@@ -7,12 +7,19 @@ interface ApiResponse {
   };
 }
 
-export async function fetchSubtitle(url: string, splitByChapter: boolean): Promise<ApiResponse> {
-  const response = await fetch(`/api/subtitle?url=${encodeURIComponent(url)}&splitByChapter=${splitByChapter}`, {
+export async function fetchSubtitle(
+  url: string,
+  splitChapter: boolean = false,
+  preferChinese: boolean = true
+): Promise<ApiResponse> {
+  const params = new URLSearchParams({
+    url: url,
+    split_by_chapter: splitChapter.toString(),
+    prefer_chinese: preferChinese.toString(),
+  });
+
+  const response = await fetch(`/api/subtitle?${params.toString()}`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
   });
 
   const data = await response.json();

@@ -4,6 +4,7 @@ import webvtt
 import logging
 import tempfile
 from pathlib import Path
+import html  # Add this import at the top
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,9 @@ def convert_subtitle(filename: str, chapter_start: float = None, chapter_end: fl
         if chapter_end is not None and now > chapter_end:
             break
 
-        sentences = caption.text.split("\n")
+        # Clean HTML entities from the text
+        cleaned_text = html.unescape(caption.text)
+        sentences = cleaned_text.split("\n")
 
         # dedup sentences in caption
         while len(sentences) != 0 and sentences[0] == previous_sentence:
@@ -81,13 +84,16 @@ def sanitize_filename(filename: str) -> str:
     return filename.strip()[:100]
 
 
-def download_subtitles(url: str, cookie_contents: str = None, split_by_chapter: bool = False) -> list[str]:
+def download_subtitles(
+    url: str, cookie_contents: str = None, split_by_chapter: bool = False, prefer_chinese: bool = False
+) -> list[str]:
     """Downloads subtitles from the given YouTube URL.
 
     Args:
         url: YouTube video URL
         cookie_contents: Optional cookie contents for private videos
         split_by_chapter: If True, splits subtitles by chapters
+        prefer_chinese: If True, tries Chinese subtitles first, otherwise tries English first
 
     Returns:
         list[str]: List of paths to subtitle files. Contains single item if split_by_chapter=False
@@ -102,11 +108,15 @@ def download_subtitles(url: str, cookie_contents: str = None, split_by_chapter: 
         temp_subtitles_dir.mkdir(exist_ok=True)
         temp_cache_dir.mkdir(exist_ok=True)
 
+        # Set language preference order based on prefer_chinese parameter
+        lang_order = ["zh-Hans", "zh-CN", "zh", "en"] if prefer_chinese else ["en", "zh-Hans", "zh-CN", "zh"]
+
         ydl_opts = {
             "writesubtitles": True,
             "writeautomaticsub": True,
             "skip_download": True,
             "subtitlesformat": "vtt",
+            "subtitleslangs": lang_order,  # Use the ordered language list
             "outtmpl": str(temp_subtitles_dir / "%(id)s.%(ext)s"),
             "quiet": True,
             "cachedir": str(temp_cache_dir),
@@ -126,12 +136,28 @@ def download_subtitles(url: str, cookie_contents: str = None, split_by_chapter: 
                 video_title = sanitize_filename(info.get("title", ""))
                 video_id = info.get("id")
 
-                requested_subtitles = info.get("requested_subtitles")
-                subtitle_info = next(iter(requested_subtitles.values()))
-                subtitle_path = subtitle_info.get("filepath")
-
-                if not os.path.exists(subtitle_path):
+                requested_subtitles = info.get("requested_subtitles", {})
+                if not requested_subtitles:
                     logger.error(f"No subtitles found for video ID: {video_id}")
+                    return []
+
+                # Try to get subtitles in the preferred order
+                subtitle_info = None
+                selected_lang = None
+                for lang in lang_order:
+                    if lang in requested_subtitles:
+                        subtitle_info = requested_subtitles[lang]
+                        selected_lang = lang
+                        logger.info(f"Selected {lang} subtitles")
+                        break
+
+                if not subtitle_info:
+                    logger.error(f"No suitable subtitles found for video ID: {video_id}")
+                    return []
+
+                subtitle_path = subtitle_info.get("filepath")
+                if not os.path.exists(subtitle_path):
+                    logger.error(f"Subtitle file not found for video ID: {video_id}")
                     return []
 
                 logger.info(f"Successfully downloaded subtitles for video ID: {video_id}")

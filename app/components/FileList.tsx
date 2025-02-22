@@ -111,7 +111,9 @@ export default function FileList({ files }: FileListProps) {
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-4">
-              <pre className="whitespace-pre-wrap bg-gray-100 p-4 rounded-md text-sm">{currentFile.content}</pre>
+              <pre className="text-left whitespace-pre-wrap bg-gray-100 p-4 rounded-md text-sm">
+                {currentFile.content}
+              </pre>
             </div>
           </div>
         </div>
