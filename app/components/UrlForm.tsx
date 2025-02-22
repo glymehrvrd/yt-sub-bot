@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import FileList from './FileList';
-import styles from './UrlForm.module.css';
 import { FileData } from '../types/files';
 import { fetchSubtitle } from '../services/api';
 
@@ -31,35 +30,37 @@ export default function UrlForm() {
   };
 
   return (
-    <div className={styles.urlForm}>
-      <div className={styles.formGroup}>
+    <div className="flex flex-col gap-4 my-8">
+      <div className="w-full">
         <input
           type="url"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="Please enter URL"
-          className={styles.urlInput}
+          className="w-full p-2 border border-gray-300 rounded-md text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
-      <div className={styles.checkboxGroup}>
-        <label className={styles.checkboxLabel}>
+      <div className="flex items-center gap-2">
+        <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
             checked={isChecked}
             onChange={(e) => setIsChecked(e.target.checked)}
-            className={styles.checkboxInput}
+            className="w-4 h-4 text-blue-600"
           />
-          <span className={styles.checkboxText}>Split by chapters</span>
+          <span>Split by chapters</span>
         </label>
       </div>
 
       <button
         onClick={handleSubmit}
         disabled={loading}
-        className={styles.submitButton}
+        className="w-full py-2 px-4 bg-blue-600 text-white rounded-md disabled:bg-gray-400 disabled:cursor-not-allowed"
       >
-        {loading && <span className={styles.loadingSpinner}></span>}
+        {loading && (
+          <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
+        )}
         {loading ? 'Processing...' : 'Confirm'}
       </button>
 

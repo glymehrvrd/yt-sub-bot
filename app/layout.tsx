@@ -1,3 +1,5 @@
+import "./globals.css";
+
 export const metadata = {
   title: 'YouTube Subtitle Downloader',
   description: 'Download YouTube subtitles easily',
