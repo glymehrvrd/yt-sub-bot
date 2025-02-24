@@ -1,6 +1,7 @@
 from flask import Flask, jsonify
 from flask import request
 from api.downloader import download_subtitles
+from api.crypto import decrypt_text
 import logging
 import os
 
@@ -19,6 +20,15 @@ def handle_exception(e):
 def get_subtitle():
     try:
         url = request.args.get("url")
+        username = request.args.get("username")
+        password = request.args.get("password")
+
+        # Decrypt credentials if present
+        if username:
+            username = decrypt_text(username)
+        if password:
+            password = decrypt_text(password)
+
         logger.info(f"Received subtitle request for URL: {url}")
 
         if not url:
@@ -28,10 +38,12 @@ def get_subtitle():
         split_by_chapter = request.args.get("split_by_chapter", "false").lower() == "true"
         prefer_chinese = request.args.get("prefer_chinese", "false").lower() == "true"
 
-        with open("www.youtube.com_cookies.txt", "r") as f:
-            cookie_contents = f.read()
         subtitle_paths = download_subtitles(
-            url, cookie_contents=cookie_contents, split_by_chapter=split_by_chapter, prefer_chinese=prefer_chinese
+            url,
+            split_by_chapter=split_by_chapter,
+            prefer_chinese=prefer_chinese,
+            username=username,
+            password=password,
         )
 
         if not subtitle_paths:

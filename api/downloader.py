@@ -85,7 +85,12 @@ def sanitize_filename(filename: str) -> str:
 
 
 def download_subtitles(
-    url: str, cookie_contents: str = None, split_by_chapter: bool = False, prefer_chinese: bool = False
+    url: str,
+    cookie_contents: str = None,
+    split_by_chapter: bool = False,
+    prefer_chinese: bool = False,
+    username: str = None,
+    password: str = None,
 ) -> list[str]:
     """Downloads subtitles from the given YouTube URL.
 
@@ -93,7 +98,9 @@ def download_subtitles(
         url: YouTube video URL
         cookie_contents: Optional cookie contents for private videos
         split_by_chapter: If True, splits subtitles by chapters
-        prefer_chinese: If True, tries Chinese subtitles first, otherwise tries English first
+        prefer_chinese: If True, tries Chinese subtitles first
+        username: Optional YouTube username
+        password: Optional YouTube password
 
     Returns:
         list[str]: List of paths to subtitle files. Contains single item if split_by_chapter=False
@@ -121,6 +128,9 @@ def download_subtitles(
             "quiet": True,
             "cachedir": str(temp_cache_dir),
         }
+
+        if username and password:
+            ydl_opts.update({"username": username, "password": password})
 
         # Only add cookie handling if cookie_contents is provided
         if cookie_contents:
