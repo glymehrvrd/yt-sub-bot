@@ -51,11 +51,17 @@ export interface TranscriptConfig {
   lang?: string;
   cookies?: string;
 }
-export interface TranscriptResponse {
+
+export interface Transcription {
   text: string;
   duration: number;
   offset: number;
   lang?: string;
+}
+
+export interface TranscriptResponse {
+  title: string;
+  transcriptions: Transcription[];
 }
 
 /**
@@ -67,7 +73,7 @@ export class YoutubeTranscript {
    * @param videoId Video url or video identifier
    * @param config Get transcript in a specific language ISO
    */
-  public static async fetchTranscript(videoId: string, config?: TranscriptConfig): Promise<TranscriptResponse[]> {
+  public static async fetchTranscript(videoId: string, config?: TranscriptConfig): Promise<TranscriptResponse> {
     const identifier = this.retrieveVideoId(videoId);
     log.debug('Fetching transcript:', {
       videoId: identifier,
@@ -89,6 +95,10 @@ export class YoutubeTranscript {
       `url: https://www.youtube.com/watch?v=${identifier}`
     );
     const videoPageBody = await videoPageResponse.text();
+
+    // Extract video title
+    const titleMatch = videoPageBody.match(/<title>([^<]*)<\/title>/);
+    const title = titleMatch ? titleMatch[1].replace(' - YouTube', '') : 'Untitled';
 
     const splittedHTML = videoPageBody.split('"captions":');
 
@@ -154,12 +164,15 @@ export class YoutubeTranscript {
     const results = [...transcriptBody.matchAll(RE_XML_TRANSCRIPT)];
     log.debug('Parsed transcript entries:', results.length);
 
-    return results.map((result) => ({
-      text: result[3],
-      duration: parseFloat(result[2]),
-      offset: parseFloat(result[1]),
-      lang: config?.lang ?? captions.captionTracks[0].languageCode,
-    }));
+    return {
+      title,
+      transcriptions: results.map((result) => ({
+        text: result[3],
+        duration: parseFloat(result[2]),
+        offset: parseFloat(result[1]),
+        lang: config?.lang ?? captions.captionTracks[0].languageCode,
+      })),
+    };
   }
 
   /**

@@ -20,7 +20,7 @@ export default function UrlForm() {
 
     setLoading(true);
     try {
-      const response = await fetchSubtitle(url, isChecked, preferChinese);
+      const response = await fetchSubtitle(url, preferChinese);
       setFiles(response?.data?.files || []);
     } catch (error) {
       console.error('Request failed:', error);
@@ -43,16 +43,6 @@ export default function UrlForm() {
       </div>
 
       <div className="flex items-center gap-4">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={isChecked}
-            onChange={(e) => setIsChecked(e.target.checked)}
-            className="w-4 h-4 text-blue-600"
-          />
-          <span>Split by chapters</span>
-        </label>
-
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"

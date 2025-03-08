@@ -1,35 +1,8 @@
 import { YoutubeTranscript } from '@/lib/youtube-transcript';
-import fs from 'fs/promises';
-import path from 'path';
-import os from 'os';
 import { logger } from '@/lib/utils';
 import { decodeXML } from 'entities';
 
-interface Chapter {
-  title: string;
-  start_time: number;
-  end_time?: number;
-}
-
-interface VideoInfo {
-  id: string;
-  title: string;
-  chapters?: Chapter[];
-}
-
-interface DownloadOptions {
-  url: string;
-  splitByChapter?: boolean;
-  preferChinese?: boolean;
-  cookieContents?: string;
-}
-
 const log = logger('downloader');
-
-async function getVideoId(url: string): Promise<string> {
-  const match = url.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/watch\?.+&v=))([\w-]{11})/);
-  return match ? match[1] : url;
-}
 
 function parseCookies(cookieContents: string): string {
   return cookieContents
@@ -46,34 +19,47 @@ function parseCookies(cookieContents: string): string {
     .join('; ');
 }
 
-export async function downloadSubtitles({
-  url,
-  splitByChapter = false,
+export interface DownloadSubtitleOptions {
+  videoId: string;
+  preferChinese?: boolean;
+  cookieContents?: string;
+}
+
+export interface DownloadSubtitleResult {
+  title: string;
+  subtitle: string;
+}
+
+export async function downloadSubtitle({
+  videoId,
   preferChinese = false,
   cookieContents,
-}: DownloadOptions): Promise<string[]> {
-  const videoId = await getVideoId(url);
+}: DownloadSubtitleOptions): Promise<DownloadSubtitleResult> {
+  log.info('Starting subtitle download');
+  const lang = preferChinese ? 'zh' : 'en';
   const transcript = await YoutubeTranscript.fetchTranscript(videoId, {
-    lang: preferChinese ? 'zh' : 'en',
+    lang: lang,
     cookies: cookieContents ? parseCookies(cookieContents) : undefined,
   });
 
   const paragraphList: string[] = [];
   let currentParagraph = '';
-  let previousTime = 0;
+  let currentWordCount = 0;
+  const MAX_WORDS = 1000;
 
-  for (const item of transcript) {
-    const now = item.offset;
+  for (const item of transcript.transcriptions) {
     const text = decodeXML(decodeXML(item.text));
+    const newWordCount = text.split(/\s+/).length;
 
-    if (now - previousTime > 5) {
+    if (currentWordCount + newWordCount > MAX_WORDS) {
       if (currentParagraph !== '') {
         paragraphList.push(currentParagraph);
       }
       currentParagraph = text;
-      previousTime = now;
+      currentWordCount = newWordCount;
     } else {
       currentParagraph = currentParagraph ? `${currentParagraph} ${text}` : text;
+      currentWordCount += newWordCount;
     }
   }
 
@@ -81,22 +67,8 @@ export async function downloadSubtitles({
     paragraphList.push(currentParagraph);
   }
 
-  const outputDir = path.join(os.tmpdir(), 'subtitles');
-  await fs.mkdir(outputDir, { recursive: true });
-
-  // For now, we'll use the video ID as the title since we don't have access to the video title
-  const videoTitle = sanitizeFilename(videoId);
-  const content = paragraphList.join('\n');
-
-  const outputPath = path.join(outputDir, `${videoTitle}.txt`);
-  await fs.writeFile(outputPath, content);
-
-  return [outputPath];
-}
-
-function sanitizeFilename(filename: string): string {
-  return filename
-    .replace(/[<>:"/\\|?*]/g, '_')
-    .trim()
-    .slice(0, 100);
+  return {
+    title: transcript.title,
+    subtitle: paragraphList.join('\n'),
+  };
 }

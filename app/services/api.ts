@@ -7,14 +7,9 @@ interface ApiResponse {
   };
 }
 
-export async function fetchSubtitle(
-  url: string,
-  splitChapter: boolean = false,
-  preferChinese: boolean = true
-): Promise<ApiResponse> {
+export async function fetchSubtitle(url: string, preferChinese: boolean = true): Promise<ApiResponse> {
   const params = new URLSearchParams({
     url: url,
-    split_by_chapter: splitChapter.toString(),
     prefer_chinese: preferChinese.toString(),
   });
 
