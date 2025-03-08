@@ -4,26 +4,26 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "fastapi-dev": "pipenv sync && pipenv run python -m flask --app api/index run -p 5328",
-    "next-dev": "next dev -H 0.0.0.0",
-    "dev": "concurrently \"npm run next-dev\" \"npm run fastapi-dev\"",
+    "dev": "next dev -H 0.0.0.0",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "^14.2.13"
+    "entities": "^6.0.0",
+    "next": "^14.2.13",
+    "webvtt-parser": "^2.2.0"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.8",
     "@types/node": "22.5.5",
     "@types/react": "18.3.8",
     "@types/react-dom": "18.3.0",
-    "concurrently": "^9.0.1",
+    "@types/webvtt-parser": "^2.2.0",
     "eslint": "8.41.0",
     "eslint-config-next": "13.4.4",
-    "typescript": "~5.7.2",
-    "@tailwindcss/postcss": "^4.0.8",
     "postcss": "^8.5.3",
-    "tailwindcss": "^4.0.8"
+    "tailwindcss": "^4.0.8",
+    "typescript": "~5.7.2"
   }
 }
