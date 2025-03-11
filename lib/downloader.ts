@@ -77,6 +77,7 @@ export interface DownloadSubtitleOptions {
 export interface DownloadSubtitleResult {
   title: string;
   subtitle: string;
+  language: string;
 }
 
 // Helper functions
@@ -242,5 +243,6 @@ export async function downloadSubtitle({
   return {
     title: transcript.title,
     subtitle: paragraphList.join('\n'),
+    language: lang,
   };
 }
