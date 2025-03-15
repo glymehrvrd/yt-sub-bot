@@ -13,6 +13,7 @@ export interface TranslatorConfig {
   secretKey?: string;
   apiKey?: string;
   model?: string;
+  baseURL?: string;
 }
 
 export interface TranslatorOptions {
@@ -106,7 +107,7 @@ export class TencentTranslator extends Translator {
       return translatedText;
     } catch (error) {
       log.error('Translation failed:', error);
-      throw new TranslationError(error.message || 'Unknown error');
+      throw new TranslationError(error instanceof Error ? error.message : 'Unknown error');
     }
   }
 }
@@ -120,8 +121,17 @@ export class OpenAITranslator extends Translator {
     if (!config.apiKey) {
       throw new TranslationError('OpenAI API key is required');
     }
-    this.client = new OpenAI({ baseURL: 'https://api.deepseek.com', apiKey: config.apiKey });
-    this.model = config.model || 'deepseek-chat';
+    if (!config.baseURL) {
+      throw new TranslationError('OpenAI base URL is required');
+    }
+    if (!config.model) {
+      throw new TranslationError('OpenAI model is required');
+    }
+    this.client = new OpenAI({
+      baseURL: config.baseURL,
+      apiKey: config.apiKey
+    });
+    this.model = config.model;
   }
 
   async translate(text: string, options: TranslatorOptions): Promise<string> {
@@ -156,7 +166,9 @@ export class OpenAITranslator extends Translator {
       return translatedText;
     } catch (error) {
       log.error('OpenAI translation error:', error);
-      throw new TranslationError(error.message || 'Unknown error');
+      throw new TranslationError(
+        error instanceof Error ? error.message : 'Unknown error'
+      );
     }
   }
 }

@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ err: 'URL is required' }, { status: 400 });
     }
 
-    const preferChinese = searchParams.get('prefer_chinese') === 'true';
+    const language = searchParams.get('language') || 'zh';
 
     const cookiePath = path.join(process.cwd(), 'www.youtube.com_cookies.txt');
     const cookieContents = await fs.readFile(cookiePath, 'utf-8');
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const subtitle = await subtitleManager.getSubtitle({
       url,
       cookieContents,
-      preferChinese,
+      language,
     });
 
     if (!subtitle.subtitle.length) {

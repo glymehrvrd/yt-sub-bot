@@ -1,6 +1,11 @@
 import { logger } from '@/lib/utils';
 import { decodeXML } from 'entities';
 
+interface CaptionTrack {
+  languageCode: string;
+  baseUrl: string;
+}
+
 const log = logger('downloader');
 
 // Constants
@@ -11,7 +16,7 @@ const RE_XML_TRANSCRIPT = /<text start="([^"]*)" dur="([^"]*)">([^<]*)<\/text>/g
 
 // Error classes
 export class YoutubeTranscriptError extends Error {
-  constructor(message) {
+  constructor(message: string) {
     super(`[YoutubeTranscript] 🚨 ${message}`);
   }
 }
@@ -41,9 +46,9 @@ export class YoutubeTranscriptNotAvailableError extends YoutubeTranscriptError {
 }
 
 export class YoutubeTranscriptNotAvailableLanguageError extends YoutubeTranscriptError {
-  constructor(lang: string, availableLangs: string[], videoId: string) {
+  constructor(language: string, availableLangs: string[], videoId: string) {
     super(
-      `No transcripts are available in ${lang} this video (${videoId}). Available languages: ${availableLangs.join(
+      `No transcripts are available in ${language} this video (${videoId}). Available languages: ${availableLangs.join(
         ', '
       )}`
     );
@@ -52,7 +57,7 @@ export class YoutubeTranscriptNotAvailableLanguageError extends YoutubeTranscrip
 
 // Interfaces
 interface TranscriptConfig {
-  lang?: string;
+  language?: string;
   cookies?: string;
 }
 
@@ -60,7 +65,7 @@ interface Transcription {
   text: string;
   duration: number;
   offset: number;
-  lang?: string;
+  language?: string;
 }
 
 interface TranscriptResponse {
@@ -70,7 +75,7 @@ interface TranscriptResponse {
 
 export interface DownloadSubtitleOptions {
   videoId: string;
-  preferChinese?: boolean;
+  language?: string;
   cookieContents?: string;
 }
 
@@ -112,13 +117,13 @@ async function fetchTranscript(videoId: string, config?: TranscriptConfig): Prom
   const identifier = retrieveVideoId(videoId);
   log.debug('Fetching transcript:', {
     videoId: identifier,
-    language: config?.lang || 'default',
+    language: config?.language || 'default',
     hasCookies: !!config?.cookies,
   });
 
   const videoPageResponse = await fetch(`https://www.youtube.com/watch?v=${identifier}`, {
     headers: {
-      ...(config?.lang && { 'Accept-Language': config.lang }),
+      ...(config?.language && { 'Accept-Language': config.language }),
       ...(config?.cookies && { Cookie: config.cookies }),
       'User-Agent': USER_AGENT,
     },
@@ -158,26 +163,26 @@ async function fetchTranscript(videoId: string, config?: TranscriptConfig): Prom
 
   log.debug('Found caption tracks:', {
     count: captions.captionTracks?.length || 0,
-    availableLanguages: captions.captionTracks?.map((track) => track.languageCode) || [],
+    availableLanguages: captions.captionTracks?.map((track: CaptionTrack) => track.languageCode) || [],
   });
 
-  if (config?.lang && !captions.captionTracks.some((track) => track.languageCode === config?.lang)) {
+  if (config?.language && !captions.captionTracks.some((track: CaptionTrack) => track.languageCode === config?.language)) {
     throw new YoutubeTranscriptNotAvailableLanguageError(
-      config?.lang,
-      captions.captionTracks.map((track) => track.languageCode),
+      config?.language,
+      captions.captionTracks.map((track: CaptionTrack) => track.languageCode),
       videoId
     );
   }
 
   const transcriptURL = (
-    config?.lang
-      ? captions.captionTracks.find((track) => track.languageCode === config?.lang)
+    config?.language
+      ? captions.captionTracks.find((track: CaptionTrack) => track.languageCode === config?.language)
       : captions.captionTracks[0]
   ).baseUrl;
 
   const transcriptResponse = await fetch(transcriptURL, {
     headers: {
-      ...(config?.lang && { 'Accept-Language': config.lang }),
+      ...(config?.language && { 'Accept-Language': config.language }),
       ...(config?.cookies && { Cookie: config.cookies }),
       'User-Agent': USER_AGENT,
     },
@@ -198,20 +203,19 @@ async function fetchTranscript(videoId: string, config?: TranscriptConfig): Prom
       text: result[3].replace(/\n/g, ' '),
       duration: parseFloat(result[2]),
       offset: parseFloat(result[1]),
-      lang: config?.lang ?? captions.captionTracks[0].languageCode,
+      language: config?.language ?? captions.captionTracks[0].languageCode,
     })),
   };
 }
 
 export async function downloadSubtitle({
   videoId,
-  preferChinese = false,
+  language: language = 'zh',
   cookieContents,
 }: DownloadSubtitleOptions): Promise<DownloadSubtitleResult> {
   log.info('Starting subtitle download');
-  const lang = preferChinese ? 'zh' : 'en';
   const transcript = await fetchTranscript(videoId, {
-    lang: lang,
+    language: language,
     cookies: cookieContents ? parseCookies(cookieContents) : undefined,
   });
 
@@ -243,6 +247,6 @@ export async function downloadSubtitle({
   return {
     title: transcript.title,
     subtitle: paragraphList.join('\n'),
-    language: lang,
+    language: language,
   };
 }

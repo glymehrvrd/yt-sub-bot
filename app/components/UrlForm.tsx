@@ -7,8 +7,7 @@ import { fetchSubtitle } from '../services/api';
 
 export default function UrlForm() {
   const [url, setUrl] = useState('');
-  const [isChecked, setIsChecked] = useState(false);
-  const [preferChinese, setPreferChinese] = useState(false);
+  const [language, setLanguage] = useState('zh');
   const [files, setFiles] = useState<FileData[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +19,7 @@ export default function UrlForm() {
 
     setLoading(true);
     try {
-      const response = await fetchSubtitle(url, preferChinese);
+      const response = await fetchSubtitle(url, language);
       setFiles(response?.data?.files || []);
     } catch (error) {
       console.error('Request failed:', error);
@@ -36,22 +35,25 @@ export default function UrlForm() {
         <input
           type="url"
           value={url}
-          onChange={(e) => setUrl(e.target.value)}
+          onInput={(e) => setUrl(e.target.value)}
           placeholder="Please enter URL"
           className="w-full p-2 border border-gray-300 rounded-md text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
       <div className="flex items-center gap-4">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={preferChinese}
-            onChange={(e) => setPreferChinese(e.target.checked)}
-            className="w-4 h-4 text-blue-600"
-          />
-          <span>Prefer Chinese subtitles</span>
+        <label htmlFor="language-select" className="text-base font-medium">
+          Language:
         </label>
+        <select
+          id="language-select"
+          value={language}
+          onChange={(e) => setLanguage(e.target.value)}
+          className="p-2 border border-gray-300 rounded-md text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="en">English</option>
+          <option value="zh">Chinese</option>
+        </select>
       </div>
 
       <button

@@ -9,7 +9,7 @@ const log = logger('subtitle-manager');
 
 export interface GetSubtitleOptions {
   url: string;
-  preferChinese?: boolean;
+  language?: string;
   cookieContents?: string;
 }
 
@@ -42,13 +42,14 @@ export class SubtitleManager {
     this.cacheDir = cacheDir;
     this.translator = useOpenAI
       ? new OpenAITranslator({
-          apiKey: process.env.OPENAI_API_KEY || '',
-          model: process.env.OPENAI_MODEL,
-        })
+        baseURL: process.env.OPENAI_BASE_URL,
+        apiKey: process.env.OPENAI_API_KEY,
+        model: process.env.OPENAI_MODEL,
+      })
       : new TencentTranslator({
-          secretId: process.env.SECRET_ID || '',
-          secretKey: process.env.SECRET_KEY || '',
-        });
+        secretId: process.env.SECRET_ID || '',
+        secretKey: process.env.SECRET_KEY || '',
+      });
   }
 
   private async ensureCacheDir(): Promise<void> {
@@ -82,7 +83,7 @@ export class SubtitleManager {
   async getSubtitle(options: GetSubtitleOptions): Promise<SubtitleResponse> {
     const videoId = await getVideoId(options.url);
     const cachePath = this.getCachePath(videoId);
-    const targetLang = options.preferChinese ? 'zh' : 'en';
+    const targetLang = options.language || 'zh';
 
     await this.ensureCacheDir();
 
@@ -98,7 +99,7 @@ export class SubtitleManager {
     try {
       result = await downloadSubtitle({
         videoId,
-        preferChinese: options.preferChinese,
+        language: targetLang,
         cookieContents: options.cookieContents,
       });
     } catch (error) {
@@ -117,7 +118,7 @@ export class SubtitleManager {
           log.info('Falling back to downloading English subtitles');
           result = await downloadSubtitle({
             videoId,
-            preferChinese: false,
+            language: 'en',
             cookieContents: options.cookieContents,
           });
         }
@@ -143,17 +144,17 @@ export class SubtitleManager {
     await fs.writeFile(cachePath, JSON.stringify(cacheEntry));
 
     // Translate if needed
-    if (targetLang === 'zh' && result.language === 'en') {
-      log.info('Translating subtitles from English to Chinese');
+    if (targetLang !== result.language) {
+      log.info(`Translating subtitles from ${result.language} to ${targetLang}`);
       const translatedSubtitle = await this.translator.translate(result.subtitle.slice(0, 600), {
-        to: 'zh',
+        to: targetLang,
       });
 
       // Update cache with translated version
       cacheEntry.timestamp = Date.now();
-      cacheEntry.versions['zh'] = {
+      cacheEntry.versions[targetLang] = {
         subtitle: translatedSubtitle,
-        language: 'zh',
+        language: targetLang,
       };
       await fs.writeFile(cachePath, JSON.stringify(cacheEntry));
 
