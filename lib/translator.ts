@@ -1,16 +1,26 @@
 import { hunyuan } from 'tencentcloud-sdk-nodejs-hunyuan';
+import { OpenAI } from 'openai';
 import { logger } from '@/lib/utils';
+import {
+  ChatCompletionCreateParamsBase,
+  ChatCompletionCreateParamsNonStreaming,
+} from 'openai/resources/chat/completions/completions';
 
 const log = logger('translator');
 
-interface TranslatorConfig {
-  secretId: string;
-  secretKey: string;
-  region?: string;
+export interface TranslatorConfig {
+  secretId?: string;
+  secretKey?: string;
+  apiKey?: string;
+  model?: string;
 }
 
-interface TranslatorOptions {
+export interface TranslatorOptions {
   to?: string;
+}
+
+export abstract class Translator {
+  abstract translate(text: string, options: TranslatorOptions): Promise<string>;
 }
 
 export class TranslationError extends Error {
@@ -39,10 +49,11 @@ interface HunyuanResponse {
   };
 }
 
-export class Translator {
+export class TencentTranslator extends Translator {
   private client: hunyuan.v20230901.Client;
 
   constructor(config: TranslatorConfig) {
+    super();
     const HunyuanClient = hunyuan.v20230901.Client;
 
     const clientConfig = {
@@ -50,7 +61,6 @@ export class Translator {
         secretId: config.secretId,
         secretKey: config.secretKey,
       },
-      region: config.region || '',
       profile: {
         httpProfile: {
           endpoint: 'hunyuan.tencentcloudapi.com',
@@ -67,7 +77,7 @@ export class Translator {
       log.debug('Translating text:', { length: text.length, to: options.to });
 
       const params = {
-        Model: 'hunyuan-turbos-latest',
+        Model: 'hunyuan-lite',
         Messages: [
           {
             Role: 'user',
@@ -96,6 +106,56 @@ export class Translator {
       return translatedText;
     } catch (error) {
       log.error('Translation failed:', error);
+      throw new TranslationError(error.message || 'Unknown error');
+    }
+  }
+}
+
+export class OpenAITranslator extends Translator {
+  private client: OpenAI;
+  private model: string;
+
+  constructor(config: TranslatorConfig) {
+    super();
+    if (!config.apiKey) {
+      throw new TranslationError('OpenAI API key is required');
+    }
+    this.client = new OpenAI({ baseURL: 'https://api.deepseek.com', apiKey: config.apiKey });
+    this.model = config.model || 'deepseek-chat';
+  }
+
+  async translate(text: string, options: TranslatorOptions): Promise<string> {
+    try {
+      const request: ChatCompletionCreateParamsNonStreaming = {
+        model: this.model,
+        messages: [
+          {
+            role: 'system',
+            content: `;; Treat next line as plain text input and translate it into ${options.to}, output translation ONLY. If translation is unnecessary (e.g. proper nouns, codes, etc.), return the original text. NO explanations. NO notes. The paragraph division may be incorrect, restructure it into a more reasonable division.`,
+          },
+          {
+            role: 'user',
+            content: text,
+          },
+        ],
+      };
+
+      log.debug('Translating request:', JSON.stringify(request));
+
+      const response = await this.client.chat.completions.create(request);
+
+      log.debug('Translating response:', JSON.stringify(response));
+
+      const translatedText = response.choices[0].message.content?.trim() || '';
+
+      log.debug('Translation completed:', {
+        originalLength: text.length,
+        translatedLength: translatedText.length,
+      });
+
+      return translatedText;
+    } catch (error) {
+      log.error('OpenAI translation error:', error);
       throw new TranslationError(error.message || 'Unknown error');
     }
   }

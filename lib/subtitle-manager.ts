@@ -2,6 +2,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { downloadSubtitle, DownloadSubtitleResult, YoutubeTranscriptNotAvailableLanguageError } from './downloader';
 import { Translator } from './translator';
+import { TencentTranslator, OpenAITranslator } from './translator';
 import { logger } from './utils';
 
 const log = logger('subtitle-manager');
@@ -35,9 +36,19 @@ export async function getVideoId(url: string): Promise<string> {
 
 export class SubtitleManager {
   private cacheDir: string;
+  private translator: Translator;
 
-  constructor(cacheDir: string = path.join(process.cwd(), '.cache', 'subtitles')) {
+  constructor(cacheDir: string = path.join(process.cwd(), '.cache', 'subtitles'), useOpenAI: boolean = true) {
     this.cacheDir = cacheDir;
+    this.translator = useOpenAI
+      ? new OpenAITranslator({
+          apiKey: process.env.OPENAI_API_KEY || '',
+          model: process.env.OPENAI_MODEL,
+        })
+      : new TencentTranslator({
+          secretId: process.env.SECRET_ID || '',
+          secretKey: process.env.SECRET_KEY || '',
+        });
   }
 
   private async ensureCacheDir(): Promise<void> {
@@ -134,12 +145,7 @@ export class SubtitleManager {
     // Translate if needed
     if (targetLang === 'zh' && result.language === 'en') {
       log.info('Translating subtitles from English to Chinese');
-      log.debug('Using credentials:', { secretId: process.env.SECRET_ID, secretKey: process.env.SECRET_KEY });
-      const translator = new Translator({
-        secretId: process.env.SECRET_ID || '',
-        secretKey: process.env.SECRET_KEY || '',
-      });
-      const translatedSubtitle = await translator.translate(result.subtitle.slice(0, 600), {
+      const translatedSubtitle = await this.translator.translate(result.subtitle.slice(0, 600), {
         to: 'zh',
       });
 
