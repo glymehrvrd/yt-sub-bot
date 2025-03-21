@@ -74,6 +74,10 @@ export class TencentTranslator extends Translator {
 
   async translate(text: string, options: TranslatorOptions): Promise<string> {
     try {
+      const systemPrompt = `;; Treat next line as plain text input and translate it into ${options.to}, output translation ONLY. If translation is unnecessary (e.g. proper nouns, codes, etc.), return the original text. NO explanations. NO notes. The paragraph division may be incorrect, restructure it into a more reasonable division.`;
+      const estimatedTokens = this.estimateTokens(systemPrompt) + this.estimateTokens(text);
+
+      log.debug('Estimated token count:', { estimatedTokens });
       options.to = options.to || 'zh';
       log.debug('Translating text:', { length: text.length, to: options.to });
 
@@ -116,6 +120,69 @@ export class OpenAITranslator extends Translator {
   private client: OpenAI;
   private model: string;
 
+  private estimateTokens(text: string): number {
+    let tokenCount = 0;
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      if (/[\x00-\x7F]/.test(char)) {
+        // ASCII character (including English)
+        tokenCount += 0.3;
+      } else {
+        // Non-ASCII characters
+        tokenCount += 0.6;
+      }
+    }
+    return Math.ceil(tokenCount);
+  }
+
+  private *iterateWords(text: string): Generator<string> {
+    let currentWord = '';
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+
+      // Check if character is whitespace or newline
+      if (/\s/.test(char)) {
+        if (currentWord) {
+          yield currentWord;
+          currentWord = '';
+        }
+      } else {
+        currentWord += char;
+      }
+    }
+
+    // Yield the last word if it exists
+    if (currentWord) {
+      yield currentWord;
+    }
+  }
+
+  private *iterateChunks(text: string): Generator<string> {
+    let currentParagraph = '';
+    let words = this.iterateWords(text);
+    let currentTokens = 0;
+
+    for (const word of words) {
+      const wordTokens = this.estimateTokens(word);
+      if (currentTokens + wordTokens > 5000) {
+        // If adding this word would exceed token limit, yield current content
+        if (currentParagraph.trim()) {
+          yield currentParagraph.trim();
+          currentParagraph = '';
+          currentTokens = 0;
+        }
+      }
+      currentParagraph += (currentParagraph ? ' ' : '') + word;
+      currentTokens += wordTokens;
+    }
+
+    // Yield the last paragraph if it exists
+    if (currentParagraph.trim()) {
+      yield currentParagraph.trim();
+    }
+  }
+
   constructor(config: TranslatorConfig) {
     super();
     if (!config.apiKey) {
@@ -134,29 +201,50 @@ export class OpenAITranslator extends Translator {
     this.model = config.model;
   }
 
+  private *mapIterator<T, U>(iterator: Iterator<T>, transform: (value: T, index: number) => U): Generator<U> {
+    let i = 0;
+    for (let result = iterator.next(); !result.done; result = iterator.next()) {
+      yield transform(result.value, i);
+      i++;
+    }
+  }
+
+
   async translate(text: string, options: TranslatorOptions): Promise<string> {
     try {
-      const request: ChatCompletionCreateParamsNonStreaming = {
-        model: this.model,
-        messages: [
-          {
-            role: 'system',
-            content: `;; Treat next line as plain text input and translate it into ${options.to}, output translation ONLY. If translation is unnecessary (e.g. proper nouns, codes, etc.), return the original text. NO explanations. NO notes. The paragraph division may be incorrect, restructure it into a more reasonable division.`,
-          },
-          {
-            role: 'user',
-            content: text,
-          },
-        ],
-      };
+      // Split text into chunks if it exceeds token limit
+      const chunks = this.iterateChunks(text);
 
-      log.debug('Translating request:', JSON.stringify(request));
+      const translatedChunks = [];
+      let index = 0;
+      for (const chunk of chunks) {
+        log.debug(`Translating chunk ${index + 1}`);
+        const request: ChatCompletionCreateParamsNonStreaming = {
+          model: this.model,
+          temperature: 1.3,
+          messages: [
+            {
+              role: 'system',
+              content: `;; Treat next line as plain text input and translate it into ${options.to}, output translation ONLY. If translation is unnecessary (e.g. proper nouns, codes, etc.), return the original text. NO explanations. NO notes. The paragraph division may be incorrect, restructure it into a more reasonable division.`,
+            },
+            {
+              role: 'user',
+              content: chunk,
+            },
+          ],
+        };
 
-      const response = await this.client.chat.completions.create(request);
+        log.debug(`Translating request[${index + 1}]:`, JSON.stringify(request))
 
-      log.debug('Translating response:', JSON.stringify(response));
+        const response = await this.client.chat.completions.create(request);
 
-      const translatedText = response.choices[0].message.content?.trim() || '';
+        log.debug(`Translating response[${index + 1}]:`, JSON.stringify(response))
+
+        translatedChunks.push(response.choices[0].message.content?.trim() || '');
+        index++;
+      }
+
+      const translatedText = translatedChunks.join('\n\n');
 
       log.debug('Translation completed:', {
         originalLength: text.length,

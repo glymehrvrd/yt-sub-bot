@@ -146,7 +146,7 @@ export class SubtitleManager {
     // Translate if needed
     if (targetLang !== result.language) {
       log.info(`Translating subtitles from ${result.language} to ${targetLang}`);
-      const translatedSubtitle = await this.translator.translate(result.subtitle.slice(0, 600), {
+      const translatedSubtitle = await this.translator.translate(result.subtitle, {
         to: targetLang,
       });
 
