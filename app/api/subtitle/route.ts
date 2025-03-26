@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     }
 
     const language = searchParams.get('language') || 'zh';
+    const tts = searchParams.get('tts') === 'true';
 
     const cookiePath = path.join(process.cwd(), 'www.youtube.com_cookies.txt');
     const cookieContents = await fs.readFile(cookiePath, 'utf-8');
@@ -22,13 +23,18 @@ export async function GET(request: NextRequest) {
       url,
       cookieContents,
       language,
+      tts,
     });
 
     if (!subtitle.subtitle.length) {
       return NextResponse.json({ err: 'No subtitles found for this video' }, { status: 404 });
     }
 
-    const files = [{ name: subtitle.title, content: subtitle.subtitle }];
+    const files = [{
+      name: subtitle.title,
+      content: subtitle.subtitle,
+      audioPath: subtitle.audioPath
+    }];
 
     return NextResponse.json({ data: { files } });
   } catch (error) {

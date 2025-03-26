@@ -75,11 +75,9 @@ export class TencentTranslator extends Translator {
   async translate(text: string, options: TranslatorOptions): Promise<string> {
     try {
       const systemPrompt = `;; Treat next line as plain text input and translate it into ${options.to}, output translation ONLY. If translation is unnecessary (e.g. proper nouns, codes, etc.), return the original text. NO explanations. NO notes. The paragraph division may be incorrect, restructure it into a more reasonable division.`;
-      const estimatedTokens = this.estimateTokens(systemPrompt) + this.estimateTokens(text);
 
-      log.debug('Estimated token count:', { estimatedTokens });
       options.to = options.to || 'zh';
-      log.debug('Translating text:', { length: text.length, to: options.to });
+      log.info(`translating text: length=${text.length}, to=${options.to}`);
 
       const params = {
         Model: 'hunyuan-lite',
@@ -103,10 +101,7 @@ export class TencentTranslator extends Translator {
 
       const translatedText = response.Choices[0].Message.Content;
 
-      log.debug('Translation completed:', {
-        originalLength: text.length,
-        translatedLength: translatedText.length,
-      });
+      log.info(`Translation completed: originalLength=${text.length}, translatedLength=${translatedText.length}`);
 
       return translatedText;
     } catch (error) {
@@ -158,17 +153,18 @@ export class OpenAITranslator extends Translator {
     }
   }
 
-  private *iterateChunks(text: string): Generator<string> {
+  private splitChunks(text: string): string[] {
     let currentParagraph = '';
     let words = this.iterateWords(text);
     let currentTokens = 0;
+    const chunks: string[] = [];
 
     for (const word of words) {
       const wordTokens = this.estimateTokens(word);
       if (currentTokens + wordTokens > 5000) {
-        // If adding this word would exceed token limit, yield current content
+        // If adding this word would exceed token limit, add current content
         if (currentParagraph.trim()) {
-          yield currentParagraph.trim();
+          chunks.push(currentParagraph.trim());
           currentParagraph = '';
           currentTokens = 0;
         }
@@ -177,10 +173,12 @@ export class OpenAITranslator extends Translator {
       currentTokens += wordTokens;
     }
 
-    // Yield the last paragraph if it exists
+    // Add the last paragraph if it exists
     if (currentParagraph.trim()) {
-      yield currentParagraph.trim();
+      chunks.push(currentParagraph.trim());
     }
+
+    return chunks;
   }
 
   constructor(config: TranslatorConfig) {
@@ -201,24 +199,15 @@ export class OpenAITranslator extends Translator {
     this.model = config.model;
   }
 
-  private *mapIterator<T, U>(iterator: Iterator<T>, transform: (value: T, index: number) => U): Generator<U> {
-    let i = 0;
-    for (let result = iterator.next(); !result.done; result = iterator.next()) {
-      yield transform(result.value, i);
-      i++;
-    }
-  }
-
-
   async translate(text: string, options: TranslatorOptions): Promise<string> {
     try {
       // Split text into chunks if it exceeds token limit
-      const chunks = this.iterateChunks(text);
-
+      const chunks = this.splitChunks(text);
       const translatedChunks = [];
-      let index = 0;
-      for (const chunk of chunks) {
-        log.debug(`Translating chunk ${index + 1}`);
+
+      for (let index = 0; index < chunks.length; index++) {
+        log.info(`Translating chunk ${index + 1}/${chunks.length}`);
+        const chunk = chunks[index];
         const request: ChatCompletionCreateParamsNonStreaming = {
           model: this.model,
           temperature: 1.3,
@@ -241,15 +230,11 @@ export class OpenAITranslator extends Translator {
         log.debug(`Translating response[${index + 1}]:`, JSON.stringify(response))
 
         translatedChunks.push(response.choices[0].message.content?.trim() || '');
-        index++;
       }
 
       const translatedText = translatedChunks.join('\n\n');
 
-      log.debug('Translation completed:', {
-        originalLength: text.length,
-        translatedLength: translatedText.length,
-      });
+      log.info(`Translation completed: originalLength=${text.length}, translatedLength=${translatedText.length}`);
 
       return translatedText;
     } catch (error) {

@@ -8,6 +8,7 @@ import { fetchSubtitle } from '../services/api';
 export default function UrlForm() {
   const [url, setUrl] = useState('');
   const [language, setLanguage] = useState('zh');
+  const [tts, setTts] = useState(false);
   const [files, setFiles] = useState<FileData[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -19,7 +20,7 @@ export default function UrlForm() {
 
     setLoading(true);
     try {
-      const response = await fetchSubtitle(url, language);
+      const response = await fetchSubtitle(url, language, tts);
       setFiles(response?.data?.files || []);
     } catch (error) {
       console.error('Request failed:', error);
@@ -54,6 +55,20 @@ export default function UrlForm() {
           <option value="en">English</option>
           <option value="zh">Chinese</option>
         </select>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          id="tts-checkbox"
+          checked={tts}
+          onChange={(e) => setTts(e.target.checked)}
+          className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+          disabled={language !== 'zh'}
+        />
+        <label htmlFor="tts-checkbox" className="text-base">
+          Generate audio (Chinese only)
+        </label>
       </div>
 
       <button

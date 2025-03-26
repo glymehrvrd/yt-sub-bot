@@ -4,6 +4,7 @@ import { downloadSubtitle, DownloadSubtitleResult, YoutubeTranscriptNotAvailable
 import { Translator } from './translator';
 import { TencentTranslator, OpenAITranslator } from './translator';
 import { logger } from './utils';
+import { generateAudioFromText } from './tts';
 
 const log = logger('subtitle-manager');
 
@@ -11,6 +12,7 @@ export interface GetSubtitleOptions {
   url: string;
   language?: string;
   cookieContents?: string;
+  tts?: boolean;
 }
 
 interface SubtitleVersion {
@@ -27,6 +29,7 @@ interface CacheEntry {
 export interface SubtitleResponse {
   title: string;
   subtitle: string;
+  audioPath?: string;
 }
 
 export async function getVideoId(url: string): Promise<string> {
@@ -158,10 +161,42 @@ export class SubtitleManager {
       };
       await fs.writeFile(cachePath, JSON.stringify(cacheEntry));
 
-      return {
-        title: result.title,
-        subtitle: translatedSubtitle,
-      };
+      // Generate TTS if requested and language is Chinese
+      if (options.tts) {
+        const audioDir = path.join(this.cacheDir, 'audio');
+        await fs.mkdir(audioDir, { recursive: true });
+        const audioPath = path.join(audioDir, `${videoId}.mp3`);
+
+        try {
+          const audioStats = await fs.stat(audioPath);
+          if (audioStats.isFile()) {
+            log.info('Found cached audio file');
+            return {
+              title: result.title,
+              subtitle: translatedSubtitle,
+              audioPath
+            };
+          }
+        } catch (error) {
+          // File doesn't exist, continue with generation
+        }
+
+        try {
+          await generateAudioFromText(translatedSubtitle, audioPath);
+          return {
+            title: result.title,
+            subtitle: translatedSubtitle,
+            audioPath
+          };
+        } catch (error) {
+          log.error('TTS generation failed:', error);
+      // Return subtitle without audio if TTS fails
+          return {
+            title: result.title,
+            subtitle: translatedSubtitle,
+          };
+        }
+      }
     }
 
     return {
@@ -170,3 +205,4 @@ export class SubtitleManager {
     };
   }
 }
+
