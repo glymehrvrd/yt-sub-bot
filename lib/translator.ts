@@ -210,7 +210,7 @@ export class OpenAITranslator extends Translator {
         const chunk = chunks[index];
         const request: ChatCompletionCreateParamsNonStreaming = {
           model: this.model,
-          temperature: 1.3,
+          // temperature: 1.3,
           messages: [
             {
               role: 'system',

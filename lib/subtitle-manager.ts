@@ -78,7 +78,7 @@ export class SubtitleManager {
         log.info(`Cached subtitle not found for language: ${lang}`);
       }
     } catch (error) {
-      log.error('Read cache error:', error);
+      // cache not exists
     }
     return null;
   }
@@ -146,12 +146,18 @@ export class SubtitleManager {
     };
     await fs.writeFile(cachePath, JSON.stringify(cacheEntry));
 
+    let response: SubtitleResponse = {
+      title: result.title,
+      subtitle: result.subtitle
+    };
+
     // Translate if needed
     if (targetLang !== result.language) {
       log.info(`Translating subtitles from ${result.language} to ${targetLang}`);
       const translatedSubtitle = await this.translator.translate(result.subtitle, {
         to: targetLang,
       });
+      response.subtitle = translatedSubtitle
 
       // Update cache with translated version
       cacheEntry.timestamp = Date.now();
@@ -171,11 +177,8 @@ export class SubtitleManager {
           const audioStats = await fs.stat(audioPath);
           if (audioStats.isFile()) {
             log.info('Found cached audio file');
-            return {
-              title: result.title,
-              subtitle: translatedSubtitle,
-              audioPath
-            };
+            response.audioPath = audioPath
+            return response
           }
         } catch (error) {
           // File doesn't exist, continue with generation
@@ -183,26 +186,16 @@ export class SubtitleManager {
 
         try {
           await generateAudioFromText(translatedSubtitle, audioPath);
-          return {
-            title: result.title,
-            subtitle: translatedSubtitle,
-            audioPath
-          };
+          response.audioPath = audioPath
+          return response
         } catch (error) {
           log.error('TTS generation failed:', error);
       // Return subtitle without audio if TTS fails
-          return {
-            title: result.title,
-            subtitle: translatedSubtitle,
-          };
         }
       }
     }
 
-    return {
-      title: result.title,
-      subtitle: result.subtitle,
-    };
+    return response;
   }
 }
 
