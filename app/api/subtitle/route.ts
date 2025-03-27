@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const cookieContents = await fs.readFile(cookiePath, 'utf-8');
 
     const subtitleManager = new SubtitleManager();
-    const subtitle = await subtitleManager.getSubtitle({
+    const subtitle = await subtitleManager.get({
       url,
       cookieContents,
       language,

@@ -20,14 +20,21 @@ export function splitText(text: string): string[] {
     let currentCount = 0;
 
     for (const char of text) {
-        currentChunk += char;
+        let charCount = 0;
         if (/[\u4e00-\u9fa5\u3000-\u303f\uff01-\uff5e]/.test(char)) {
-            currentCount++;
-            if (currentCount >= 150) {
-                chunks.push(currentChunk);
-                currentChunk = '';
-                currentCount = 0;
-            }
+            // 中文字符算三个
+            charCount = 3;
+        } else {
+            charCount = 1
+        }
+        // 一个chunks最大450个字符
+        if (currentCount + charCount >= 450) {
+            if (currentChunk) chunks.push(currentChunk);
+            currentChunk = char;
+            currentCount = charCount;
+        } else {
+            currentChunk += char;
+            currentCount += charCount;
         }
     }
 
@@ -72,7 +79,7 @@ export async function tts(text: string, sid: string) {
         const data = await client.TextToVoice(params);
         return data.Audio;
     } catch (err) {
-        log.error("TTS generation failed", err);
+        log.error(`TTS generation failed, err = ${err}, text = ${text}`);
         throw err;
     }
 }

@@ -18,6 +18,7 @@ export interface GetSubtitleOptions {
 interface SubtitleVersion {
   subtitle: string;
   language: string;
+  originalLanguage: string;
 }
 
 interface CacheEntry {
@@ -29,6 +30,8 @@ interface CacheEntry {
 export interface SubtitleResponse {
   title: string;
   subtitle: string;
+  language: string;
+  originalLanguage: string;
   audioPath?: string;
 }
 
@@ -73,6 +76,8 @@ export class SubtitleManager {
           return {
             title: cached.title,
             subtitle: cached.versions[lang].subtitle,
+            language: lang,
+            originalLanguage: cached.versions[lang].originalLanguage,
           };
         }
         log.info(`Cached subtitle not found for language: ${lang}`);
@@ -83,27 +88,37 @@ export class SubtitleManager {
     return null;
   }
 
-  async getSubtitle(options: GetSubtitleOptions): Promise<SubtitleResponse> {
+  async get(options: GetSubtitleOptions): Promise<SubtitleResponse> {
     const videoId = await getVideoId(options.url);
+    const language = options.language || 'zh';
+
+    let response = await this.getTitleAndSubtitle(videoId, language, options.cookieContents);
+    if (response.originalLanguage != language && options.tts) {
+      const audioPath = await this.tts(videoId, response.subtitle);
+      response.audioPath = audioPath;
+    }
+    return response;
+  }
+
+  async getTitleAndSubtitle(videoId: string, language: string, cookie?: string): Promise<SubtitleResponse> {
     const cachePath = this.getCachePath(videoId);
-    const targetLang = options.language || 'zh';
 
     await this.ensureCacheDir();
 
     // Try to read from cache first
-    const cachedResult = await this.readCache(cachePath, targetLang);
+    const cachedResult = await this.readCache(cachePath, language);
     if (cachedResult) {
       return cachedResult;
     }
 
     // Download fresh subtitles
     log.info('Downloading new subtitles, videoId:', videoId);
-    let result: DownloadSubtitleResult;
+    let downloadResult: DownloadSubtitleResult;
     try {
-      result = await downloadSubtitle({
+      downloadResult = await downloadSubtitle({
         videoId,
-        language: targetLang,
-        cookieContents: options.cookieContents,
+        language,
+        cookieContents: cookie,
       });
     } catch (error) {
       if (error instanceof YoutubeTranscriptNotAvailableLanguageError) {
@@ -111,7 +126,7 @@ export class SubtitleManager {
         // Check cache for English subtitles
         const cachedEnglishSubtitle = await this.readCache(cachePath, 'en');
         if (cachedEnglishSubtitle) {
-          result = {
+          downloadResult = {
             title: cachedEnglishSubtitle.title,
             subtitle: cachedEnglishSubtitle.subtitle,
             language: 'en',
@@ -119,10 +134,10 @@ export class SubtitleManager {
         } else {
           // If not in cache, download English
           log.info('Falling back to downloading English subtitles');
-          result = await downloadSubtitle({
+          downloadResult = await downloadSubtitle({
             videoId,
             language: 'en',
-            cookieContents: options.cookieContents,
+            cookieContents: cookie,
           });
         }
       } else {
@@ -135,67 +150,68 @@ export class SubtitleManager {
     try {
       cacheEntry = JSON.parse(await fs.readFile(cachePath, 'utf-8'));
     } catch (error) {
-      cacheEntry = { timestamp: Date.now(), title: result.title, versions: {} };
+      cacheEntry = { timestamp: Date.now(), title: downloadResult.title, versions: {} };
     }
 
     // Update cache with original version
     cacheEntry.timestamp = Date.now();
-    cacheEntry.versions[result.language] = {
-      subtitle: result.subtitle,
-      language: result.language,
+    cacheEntry.versions[downloadResult.language] = {
+      subtitle: downloadResult.subtitle,
+      language: downloadResult.language,
+      originalLanguage: downloadResult.language,
     };
     await fs.writeFile(cachePath, JSON.stringify(cacheEntry));
 
     let response: SubtitleResponse = {
-      title: result.title,
-      subtitle: result.subtitle
-    };
-
+      title: downloadResult.title,
+      subtitle: downloadResult.subtitle,
+      language: downloadResult.language,
+      originalLanguage: downloadResult.language,
+    }
     // Translate if needed
-    if (targetLang !== result.language) {
-      log.info(`Translating subtitles from ${result.language} to ${targetLang}`);
-      const translatedSubtitle = await this.translator.translate(result.subtitle, {
-        to: targetLang,
+    if (language !== downloadResult.language) {
+      log.info(`Translating subtitles from ${downloadResult.language} to ${language}`);
+      const translatedSubtitle = await this.translator.translate(downloadResult.subtitle, {
+        to: language,
       });
-      response.subtitle = translatedSubtitle
 
       // Update cache with translated version
       cacheEntry.timestamp = Date.now();
-      cacheEntry.versions[targetLang] = {
+      cacheEntry.versions[language] = {
         subtitle: translatedSubtitle,
-        language: targetLang,
+        language: language,
+        originalLanguage: downloadResult.language,
       };
       await fs.writeFile(cachePath, JSON.stringify(cacheEntry));
 
-      // Generate TTS if requested and language is Chinese
-      if (options.tts) {
-        const audioDir = path.join(this.cacheDir, 'audio');
-        await fs.mkdir(audioDir, { recursive: true });
-        const audioPath = path.join(audioDir, `${videoId}.mp3`);
+      response.subtitle = translatedSubtitle;
+    }
+    return response;
+  }
 
-        try {
-          const audioStats = await fs.stat(audioPath);
-          if (audioStats.isFile()) {
-            log.info('Found cached audio file');
-            response.audioPath = audioPath
-            return response
-          }
-        } catch (error) {
-          // File doesn't exist, continue with generation
-        }
+  async tts(videoId: string, subtitle: string): Promise<string> {
+    const audioDir = path.join(this.cacheDir, 'audio');
+    await fs.mkdir(audioDir, { recursive: true });
+    const audioPath = path.join(audioDir, `${videoId}.mp3`);
 
-        try {
-          await generateAudioFromText(translatedSubtitle, audioPath);
-          response.audioPath = audioPath
-          return response
-        } catch (error) {
-          log.error('TTS generation failed:', error);
-      // Return subtitle without audio if TTS fails
-        }
+    try {
+      const audioStats = await fs.stat(audioPath);
+      if (audioStats.isFile()) {
+        log.info('Found cached audio file');
+        return audioPath;
       }
+    } catch (error) {
+      // File doesn't exist, continue with generation
     }
 
-    return response;
+    try {
+      await generateAudioFromText(subtitle, audioPath);
+      return audioPath;
+    } catch (error) {
+      log.error('TTS generation failed:', error);
+      // Return subtitle without audio if TTS fails
+    }
+    return audioPath;
   }
 }
 

@@ -26,6 +26,7 @@ describe('splitText', () => {
     chunks.forEach((chunk: string) => {
       expect(countChineseChars(chunk)).toBeLessThanOrEqual(150);
     });
+    expect(chunks.join('')).toBe(text);
   });
 
   it('should not split short text', () => {

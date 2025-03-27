@@ -7,10 +7,11 @@ interface ApiResponse {
   };
 }
 
-export async function fetchSubtitle(url: string, language: string = 'en'): Promise<ApiResponse> {
+export async function fetchSubtitle(url: string, language: string = 'en', tts: boolean = false): Promise<ApiResponse> {
   const params = new URLSearchParams({
     url: url,
     language: language,
+    tts: tts.toString(),
   });
 
   const response = await fetch(`/api/subtitle?${params.toString()}`, {
