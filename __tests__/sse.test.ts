@@ -1,3 +1,12 @@
+const mockGetTasks = jest
+  .fn()
+  .mockImplementationOnce(() => Promise.resolve([{ id: '1', status: 'PENDING' }]))
+  .mockImplementationOnce(() => Promise.resolve([{ id: '1', status: 'COMPLETED' }]))
+  .mockImplementationOnce(() => Promise.resolve([{ id: '1', status: 'COMPLETED' }]));
+jest.spyOn(require('../lib/services/TaskService'), 'TaskService').mockImplementation(() => ({
+  getTasks: mockGetTasks,
+}));
+
 import { NextRequest } from 'next/server';
 import { GET as sseHandler } from '../app/api/tasks/route';
 import { PrismaClient } from '@prisma/client';
@@ -41,17 +50,6 @@ describe('SSE Endpoint', () => {
     // Read initial connection message
     const { value: initialValue } = await reader.read();
     expect(decoder.decode(initialValue)).toContain('event: connected');
-
-    // Mock task changes
-    const mockGetTasks = jest
-      .fn()
-      .mockImplementationOnce(() => Promise.resolve([{ id: '1', status: 'PENDING' }]))
-      .mockImplementationOnce(() => Promise.resolve([{ id: '1', status: 'COMPLETED' }]))
-      .mockImplementationOnce(() => Promise.resolve([{ id: '1', status: 'COMPLETED' }]));
-
-    jest.spyOn(require('../lib/services/TaskService'), 'TaskService').mockImplementation(() => ({
-      getTasks: mockGetTasks,
-    }));
 
     // Wait for updates
     jest.advanceTimersByTime(2500);

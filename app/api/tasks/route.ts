@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
   writer.write(new TextEncoder().encode('event: connected\ndata: {}\n\n'));
 
   const pollTasks = async () => {
+    console.log(await taskService.getTasks(20));
     const tasks = await Promise.all((await taskService.getTasks(20)).map(TaskService.convertTaskDTO));
     // Find changed tasks
     const changedTasks = tasks.filter((task) => {
@@ -38,13 +39,13 @@ export async function GET(request: NextRequest) {
   await pollTasks();
 
   // Then set up interval
-  const interval = setInterval(pollTasks, 2000);
+  // const interval = setInterval(pollTasks, 2000);
 
   // Clean up on client disconnect
-  request.signal.onabort = () => {
-    clearInterval(interval);
-    writer.close();
-  };
+  // request.signal.onabort = () => {
+  //   clearInterval(interval);
+  //   writer.close();
+  // };
 
   return new Response(stream.readable, { headers });
 }
