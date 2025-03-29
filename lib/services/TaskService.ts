@@ -24,7 +24,7 @@ export class TaskService {
         url,
         language,
         status: 'PENDING',
-      }
+      },
     });
   }
 
@@ -36,7 +36,7 @@ export class TaskService {
   async getTask(id: string) {
     return prisma.task.findUnique({ where: { id } });
   }
-  
+
   /**
    * 获取任务列表
    * @param limit 返回的最大任务数
@@ -45,10 +45,10 @@ export class TaskService {
   async getTasks(limit: number = 20) {
     return prisma.task.findMany({
       orderBy: { createdAt: 'desc' },
-      take: limit
+      take: limit,
     });
   }
-  
+
   /**
    * 删除任务
    * @param id 任务ID
@@ -68,29 +68,25 @@ export class TaskService {
   async updateTaskStatus(id: string, status: TaskStatus, progress?: number) {
     return prisma.task.update({
       where: { id },
-      data: { 
+      data: {
         status,
         progress: progress !== undefined ? progress : undefined,
-      }
+      },
     });
   }
 
   /**
    * Mark task as completed
    * @param id Task ID
-   * @param subtitlePath Path to generated subtitle file
-   * @param audioPath Path to generated audio file
    * @returns Completed task object
    */
-  async completeTask(id: string, subtitlePath?: string, audioPath?: string) {
+  async completeTask(id: string) {
     return prisma.task.update({
       where: { id },
-      data: { 
+      data: {
         status: 'COMPLETED',
         progress: 100,
-        subtitlePath,
-        audioPath
-      }
+      },
     });
   }
 
@@ -103,10 +99,10 @@ export class TaskService {
   async failTask(id: string, error: string) {
     return prisma.task.update({
       where: { id },
-      data: { 
+      data: {
         status: 'FAILED',
-        error
-      }
+        error,
+      },
     });
   }
 

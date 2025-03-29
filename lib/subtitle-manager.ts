@@ -9,14 +9,6 @@ import { TaskService } from './services/TaskService';
 
 const log = logger('subtitle-manager');
 
-export interface GetSubtitleOptions {
-  url: string;
-  language?: string;
-  cookieContents?: string;
-  tts?: boolean;
-  taskId?: string;
-}
-
 interface SubtitleVersion {
   subtitle: string;
   language: string;
@@ -29,12 +21,19 @@ interface CacheEntry {
   versions: Record<string, SubtitleVersion>;
 }
 
-export interface SubtitleResponse {
+export interface GetSubtitleOptions {
+  taskId: string;
+  url: string;
+  language?: string;
+  cookieContents?: string;
+  tts?: boolean;
+}
+
+export interface DownloadSubtitleResponse {
   title: string;
   subtitle: string;
   language: string;
   originalLanguage: string;
-  audioPath?: string;
 }
 
 export async function getVideoId(url: string): Promise<string> {
@@ -48,21 +47,21 @@ export class SubtitleManager {
   private taskService: TaskService;
 
   constructor(
-    cacheDir: string = path.join(process.cwd(), '.cache', 'subtitles'), 
+    cacheDir: string = path.join(process.cwd(), '.cache', 'subtitles'),
     useOpenAI: boolean = true,
     taskService: TaskService = new TaskService()
   ) {
     this.cacheDir = cacheDir;
     this.translator = useOpenAI
       ? new OpenAITranslator({
-        baseURL: process.env.OPENAI_BASE_URL,
-        apiKey: process.env.OPENAI_API_KEY,
-        model: process.env.OPENAI_MODEL,
-      })
+          baseURL: process.env.OPENAI_BASE_URL,
+          apiKey: process.env.OPENAI_API_KEY,
+          model: process.env.OPENAI_MODEL,
+        })
       : new TencentTranslator({
-        secretId: process.env.SECRET_ID || '',
-        secretKey: process.env.SECRET_KEY || '',
-      });
+          secretId: process.env.SECRET_ID || '',
+          secretKey: process.env.SECRET_KEY || '',
+        });
     this.taskService = taskService;
   }
 
@@ -71,22 +70,31 @@ export class SubtitleManager {
    * @param params 任务参数
    * @param cookieContents YouTube cookie内容
    */
-  async processTask(params: {
-    taskId: string;
-    url: string;
-    language: string;
-  }, cookieContents: string) {
+  async processTask(params: { taskId: string; url: string; language: string }) {
+    // Start processing task in background
+    const cookiePath = path.join(process.cwd(), 'www.youtube.com_cookies.txt');
+    let cookieContents = '';
+    try {
+      cookieContents = await fs.readFile(cookiePath, 'utf-8');
+    } catch (error) {
+      console.warn('Cookie file not found, proceeding without cookies');
+      await this.taskService.updateTaskStatus(params.taskId, 'FAILED', 0);
+      await this.taskService.failTask(
+        params.taskId,
+        'Cookie file not found - please add www.youtube.com_cookies.txt file'
+      );
+      throw error;
+    }
+
     try {
       await this.get({
         url: params.url,
         language: params.language,
+        taskId: params.taskId,
         cookieContents,
-        taskId: params.taskId
       });
     } catch (error) {
-      if (this.taskService) {
-        await this.taskService.failTask(params.taskId, error instanceof Error ? error.message : 'Task failed');
-      }
+      await this.taskService.failTask(params.taskId, error instanceof Error ? error.message : 'Task failed');
       throw error;
     }
   }
@@ -99,7 +107,7 @@ export class SubtitleManager {
     return path.join(this.cacheDir, `${videoId}.json`);
   }
 
-  private async readCache(cachePath: string, lang: string): Promise<SubtitleResponse | null> {
+  private async readCache(cachePath: string, lang: string): Promise<DownloadSubtitleResponse | null> {
     try {
       const cacheStats = await fs.stat(cachePath);
       if (cacheStats.isFile()) {
@@ -121,37 +129,35 @@ export class SubtitleManager {
     return null;
   }
 
-  async get(options: GetSubtitleOptions): Promise<SubtitleResponse> {
+  async get(options: GetSubtitleOptions) {
     const videoId = await getVideoId(options.url);
     const language = options.language || 'zh';
 
-    if (options.taskId && this.taskService) {
-      await this.taskService.updateTaskStatus(options.taskId, 'DOWNLOADING', 10);
+    await this.taskService.updateTaskStatus(options.taskId, 'DOWNLOADING', 10);
+
+    let { title, subtitle, originalLanguage } = await this.downloadSubtitle(
+      videoId,
+      language,
+      options.taskId,
+      options.cookieContents
+    );
+
+    if (originalLanguage != language && options.tts) {
+      await this.taskService.updateTaskStatus(options.taskId, 'GENERATING_AUDIO', 80);
+      const audioPath = await this.tts(videoId, subtitle, options.taskId);
     }
 
-    let response = await this.getTitleAndSubtitle(videoId, language, options.cookieContents, options.taskId);
-    
-    if (response.originalLanguage != language && options.tts) {
-      if (options.taskId && this.taskService) {
-        await this.taskService.updateTaskStatus(options.taskId, 'GENERATING_AUDIO', 80);
-      }
-      const audioPath = await this.tts(videoId, response.subtitle, options.taskId);
-      response.audioPath = audioPath;
-    }
+    await this.taskService.completeTask(options.taskId);
 
-    if (options.taskId && this.taskService) {
-      await this.taskService.completeTask(options.taskId, undefined, response.audioPath);
-    }
-
-    return response;
+    return;
   }
 
-  async getTitleAndSubtitle(
-    videoId: string, 
-    language: string, 
-    cookie?: string,
-    taskId?: string
-  ): Promise<SubtitleResponse> {
+  async downloadSubtitle(
+    videoId: string,
+    language: string,
+    taskId: string,
+    cookie?: string
+  ): Promise<DownloadSubtitleResponse> {
     const cachePath = this.getCachePath(videoId);
     await this.ensureCacheDir();
 
@@ -163,9 +169,7 @@ export class SubtitleManager {
 
     // Download fresh subtitles
     log.info('Downloading new subtitles, videoId:', videoId);
-    if (taskId && this.taskService) {
-      await this.taskService.updateTaskStatus(taskId, 'DOWNLOADING', 20);
-    }
+    await this.taskService.updateTaskStatus(taskId, 'DOWNLOADING', 20);
 
     let downloadResult: DownloadSubtitleResult;
     try {
@@ -195,9 +199,7 @@ export class SubtitleManager {
           });
         }
       } else {
-        if (taskId && this.taskService) {
-          await this.taskService.failTask(taskId, error instanceof Error ? error.message : 'Unknown error');
-        }
+        await this.taskService.failTask(taskId, error instanceof Error ? error.message : 'Unknown error');
         throw error;
       }
     }
@@ -219,12 +221,12 @@ export class SubtitleManager {
     };
     await fs.writeFile(cachePath, JSON.stringify(cacheEntry));
 
-    let response: SubtitleResponse = {
+    let response: DownloadSubtitleResponse = {
       title: downloadResult.title,
       subtitle: downloadResult.subtitle,
       language: downloadResult.language,
       originalLanguage: downloadResult.language,
-    }
+    };
 
     // Translate if needed
     if (language !== downloadResult.language) {

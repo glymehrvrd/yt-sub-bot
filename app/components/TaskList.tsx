@@ -63,14 +63,16 @@ export default function TaskList() {
           {tasks.map((task) => (
             <div key={task.id} className="p-4 border rounded-lg">
               <div className="flex flex-wrap justify-between items-start gap-4">
-                <div className="flex-1 min-w-0"> {/* Add min-w-0 to allow text truncation */}
+                <div className="flex-1 min-w-0">
+                  {' '}
+                  {/* Add min-w-0 to allow text truncation */}
                   <h3 className="font-medium truncate">{task.title || 'Untitled Task'}</h3>
                   <p className="text-sm text-gray-500 truncate">{task.url}</p>
-                  <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(task.status)}`}>
-                    {task.status}
-                  </span>
+                  <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(task.status)}`}>{task.status}</span>
                 </div>
-                <span className="text-sm text-gray-500 shrink-0"> {/* Add shrink-0 to prevent date from shrinking */}
+                <span className="text-sm text-gray-500 shrink-0">
+                  {' '}
+                  {/* Add shrink-0 to prevent date from shrinking */}
                   {new Date(task.createdAt).toLocaleString()}
                 </span>
               </div>
@@ -82,22 +84,15 @@ export default function TaskList() {
                     <span>{task.progress}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full"
-                      style={{ width: `${task.progress}%` }}
-                    ></div>
+                    <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${task.progress}%` }}></div>
                   </div>
                 </div>
               )}
 
-              {task.status === 'COMPLETED' && (
-              )}
+              {/* {task.status === 'COMPLETED' && (
+              )} */}
 
-              {task.error && (
-                <div className="mt-2 text-sm text-red-600">
-                  Error: {task.error}
-                </div>
-              )}
+              {task.error && <div className="mt-2 text-sm text-red-600">Error: {task.error}</div>}
             </div>
           ))}
         </div>
