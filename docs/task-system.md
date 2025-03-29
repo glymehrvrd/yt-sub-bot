@@ -35,6 +35,10 @@ enum TaskStatus {
 ### 2. Service Layer
 - TaskService for managing task lifecycle
 - Server-Sent Events (SSE) for progress updates
+- Automatic task processing:
+  - Tasks are automatically started when created
+  - Processing handled by SubtitleManager
+  - Status updates through TaskService
 - Methods:
   - createTask(url, language)
   - getTask(id)

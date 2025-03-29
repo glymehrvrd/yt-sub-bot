@@ -5,7 +5,7 @@ import { Translator } from './translator';
 import { TencentTranslator, OpenAITranslator } from './translator';
 import { logger } from './utils';
 import { generateAudioFromText } from './tts';
-import { TaskService, TaskStatus } from './services/TaskService';
+import { TaskService } from './services/TaskService';
 
 const log = logger('subtitle-manager');
 
@@ -45,12 +45,12 @@ export async function getVideoId(url: string): Promise<string> {
 export class SubtitleManager {
   private cacheDir: string;
   private translator: Translator;
-  private taskService?: TaskService;
+  private taskService: TaskService;
 
   constructor(
     cacheDir: string = path.join(process.cwd(), '.cache', 'subtitles'), 
     useOpenAI: boolean = true,
-    taskService?: TaskService
+    taskService: TaskService = new TaskService()
   ) {
     this.cacheDir = cacheDir;
     this.translator = useOpenAI
@@ -64,6 +64,31 @@ export class SubtitleManager {
         secretKey: process.env.SECRET_KEY || '',
       });
     this.taskService = taskService;
+  }
+
+  /**
+   * 处理任务
+   * @param params 任务参数
+   * @param cookieContents YouTube cookie内容
+   */
+  async processTask(params: {
+    taskId: string;
+    url: string;
+    language: string;
+  }, cookieContents: string) {
+    try {
+      await this.get({
+        url: params.url,
+        language: params.language,
+        cookieContents,
+        taskId: params.taskId
+      });
+    } catch (error) {
+      if (this.taskService) {
+        await this.taskService.failTask(params.taskId, error instanceof Error ? error.message : 'Task failed');
+      }
+      throw error;
+    }
   }
 
   private async ensureCacheDir(): Promise<void> {

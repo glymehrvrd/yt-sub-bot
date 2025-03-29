@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TaskService } from '@/lib/services/TaskService';
+import { SubtitleManager } from '@/lib/subtitle-manager';
+import fs from 'fs/promises';
+import path from 'path';
 
 const taskService = new TaskService();
 
@@ -33,7 +36,29 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const { url, language = 'zh' } = await request.json();
+    
+    // Create task
     const task = await taskService.createTask(url, language);
+    
+    // Start processing task in background
+    const cookiePath = path.join(process.cwd(), 'www.youtube.com_cookies.txt');
+    let cookieContents = '';
+    try {
+      cookieContents = await fs.readFile(cookiePath, 'utf-8');
+    } catch (error) {
+      console.warn('Cookie file not found, proceeding without cookies');
+      await taskService.updateTaskStatus(task.id, 'FAILED', 0);
+      await taskService.failTask(task.id, 'Cookie file not found - please add www.youtube.com_cookies.txt file');
+      throw error;
+    }
+    
+    const subtitleManager = new SubtitleManager();
+    subtitleManager.processTask({
+      taskId: task.id,
+      url,
+      language
+    }, cookieContents);
+
     return NextResponse.json({ taskId: task.id });
   } catch (error) {
     console.error('Error creating task:', error);
