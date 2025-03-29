@@ -69,13 +69,12 @@ export class TaskService {
    * @param progress Optional progress percentage
    * @returns Updated task object
    */
-  async updateTaskStatus(id: string, status: TaskStatus, progress?: number, title?: string) {
+  async updateTaskStatus(id: string, status: TaskStatus, progress?: number) {
     return prisma.task.update({
       where: { id },
       data: {
         status,
         progress: progress,
-        title: title,
       },
     });
   }
@@ -85,12 +84,13 @@ export class TaskService {
    * @param id Task ID
    * @returns Completed task object
    */
-  async completeTask(id: string) {
+  async completeTask(id: string, title?: string) {
     return prisma.task.update({
       where: { id },
       data: {
         status: 'COMPLETED',
         progress: 100,
+        title: title,
       },
     });
   }

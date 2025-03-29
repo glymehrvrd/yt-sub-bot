@@ -33,7 +33,6 @@ export interface DownloadSubtitleResponse {
   title: string;
   subtitle: string;
   language: string;
-  originalLanguage: string;
 }
 
 export interface QuerySubtitleResponse extends DownloadSubtitleResponse {
@@ -123,7 +122,6 @@ export class SubtitleManager {
             title: cached.title,
             subtitle: cached.versions[lang].subtitle,
             language: lang,
-            originalLanguage: cached.versions[lang].originalLanguage,
           };
         }
         log.info(`Cached subtitle not found for language: ${lang}`);
@@ -140,24 +138,23 @@ export class SubtitleManager {
 
     await this.taskService.updateTaskStatus(options.taskId, 'DOWNLOADING', 10);
 
-    let { title, subtitle, originalLanguage } = await this.downloadSubtitle(
-      videoId,
-      language,
-      options.taskId,
-      options.cookieContents
-    );
+    let {
+      title,
+      subtitle,
+      language: downloadedLanguage,
+    } = await this.downloadSubtitle(videoId, language, options.taskId, options.cookieContents);
 
-    if (originalLanguage !== language) {
+    if (downloadedLanguage !== language) {
       await this.taskService.updateTaskStatus(options.taskId, 'TRANSLATING', 50);
-      await this.translate(options.taskId, videoId, subtitle, originalLanguage, language);
+      await this.translate(options.taskId, videoId, subtitle, downloadedLanguage, language);
     }
 
-    if (originalLanguage !== language && options.tts) {
+    if (downloadedLanguage !== language && options.tts) {
       await this.taskService.updateTaskStatus(options.taskId, 'GENERATING_AUDIO', 80);
       const audioPath = await this.tts(videoId, subtitle, options.taskId);
     }
 
-    await this.taskService.completeTask(options.taskId);
+    await this.taskService.completeTask(options.taskId, title);
 
     return;
   }
@@ -245,7 +242,6 @@ export class SubtitleManager {
       title: downloadResult.title,
       subtitle: downloadResult.subtitle,
       language: downloadResult.language,
-      originalLanguage: downloadResult.language,
     };
   }
 
