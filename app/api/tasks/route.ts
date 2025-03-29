@@ -1,23 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TaskService } from '@/lib/services/TaskService';
 import { SubtitleManager } from '@/lib/subtitle-manager';
-import { Task as TaskDTO } from '@/app/types/task';
-import { Task } from '@prisma/client';
 
 const taskService = new TaskService();
-
-function convertTaskDTO(task: Task): TaskDTO {
-  return {
-    id: task.id,
-    url: task.url,
-    title: task.title || 'Not Fetched Yet',
-    status: task.status,
-    progress: task.progress,
-    createdAt: task.createdAt.toISOString(),
-    language: task.language,
-    error: task.error || undefined,
-  };
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,11 +16,11 @@ export async function GET(request: NextRequest) {
       if (!task) {
         return NextResponse.json({ err: 'Task not found' }, { status: 404 });
       }
-      return NextResponse.json(convertTaskDTO(task));
+      return NextResponse.json(await TaskService.convertTaskDTO(task));
     } else {
       // List all tasks (sorted by creation date, newest first)
       const tasks = await taskService.getTasks(20);
-      return NextResponse.json(tasks.map(convertTaskDTO));
+      return NextResponse.json(await Promise.all(tasks.map(TaskService.convertTaskDTO)));
     }
   } catch (error) {
     console.error('Error processing request:', error);

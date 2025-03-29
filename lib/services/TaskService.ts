@@ -1,5 +1,7 @@
-import { PrismaClient, TaskStatus as PrismaTaskStatus } from '@prisma/client';
+import { PrismaClient, TaskStatus as PrismaTaskStatus, Task } from '@prisma/client';
 import { logger } from '../utils';
+import { SubtitleManager, DownloadSubtitleResponse } from '../subtitle-manager';
+import { Task as TaskDTO } from '@/app/types/task';
 
 export type TaskStatus = PrismaTaskStatus;
 
@@ -67,12 +69,13 @@ export class TaskService {
    * @param progress Optional progress percentage
    * @returns Updated task object
    */
-  async updateTaskStatus(id: string, status: TaskStatus, progress?: number) {
+  async updateTaskStatus(id: string, status: TaskStatus, progress?: number, title?: string) {
     return prisma.task.update({
       where: { id },
       data: {
         status,
-        progress: progress !== undefined ? progress : undefined,
+        progress: progress,
+        title: title,
       },
     });
   }
@@ -116,5 +119,31 @@ export class TaskService {
   private async extractVideoId(url: string): Promise<string> {
     const match = url.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/watch\?.+&v=))([\w-]{11})/);
     return match ? match[1] : url;
+  }
+
+  /**
+   * 转换任务为DTO格式
+   * @param taskId 任务ID
+   * @returns 任务DTO对象
+   * @throws 当任务不存在时抛出错误
+   */
+  static async convertTaskDTO(task: Task): Promise<TaskDTO> {
+    // 使用SubtitleManager获取字幕
+    const subtitleManager = new SubtitleManager();
+    const subtitleResponse = await subtitleManager.query(task.videoId, task.language);
+    const subtitle = subtitleResponse.subtitle;
+    return {
+      id: task.videoId,
+      url: task.url,
+      title: task.title || 'Not Fetched Yet',
+      status: task.status,
+      progress: task.progress,
+      createdAt: task.createdAt.toISOString(),
+      subtitle: subtitle,
+      language: subtitleResponse.language,
+      originalLanguage: task.language,
+      audioPath: '',
+      error: task.error ?? undefined,
+    };
   }
 }

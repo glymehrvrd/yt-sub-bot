@@ -36,6 +36,10 @@ export interface DownloadSubtitleResponse {
   originalLanguage: string;
 }
 
+export interface QuerySubtitleResponse extends DownloadSubtitleResponse {
+  audioPath?: string;
+}
+
 export async function getVideoId(url: string): Promise<string> {
   const match = url.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/watch\?.+&v=))([\w-]{11})/);
   return match ? match[1] : url;
@@ -156,6 +160,16 @@ export class SubtitleManager {
     await this.taskService.completeTask(options.taskId);
 
     return;
+  }
+
+  async query(videoId: string, language: string): Promise<QuerySubtitleResponse> {
+    // Read subtitle from cache
+    const cachePath = this.getCachePath(videoId);
+    const cachedResult = await this.readCache(cachePath, language);
+    if (!cachedResult) {
+      throw new Error(`Subtitle not found in cache, videoId: ${videoId}, language: ${language}`);
+    }
+    return cachedResult;
   }
 
   async downloadSubtitle(

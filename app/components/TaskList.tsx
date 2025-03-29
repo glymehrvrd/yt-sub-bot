@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Task } from '../types/task';
+import TaskDetail from './TaskDetail';
 
 export default function TaskList() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -16,13 +17,11 @@ export default function TaskList() {
 
     eventSource.addEventListener('update', (event) => {
       const data = JSON.parse(event.data);
-      setTasks(data);
-      setLoading(false);
+      // setTasks(data);
     });
 
     eventSource.onerror = () => {
       eventSource.close();
-      setLoading(false);
     };
 
     return () => {
@@ -35,6 +34,7 @@ export default function TaskList() {
       const response = await fetch('/api/tasks');
       const tasks = await response.json();
       setTasks(tasks);
+      setLoading(false);
     } catch (error) {
       console.error('Failed to fetch tasks:', error);
     }
@@ -42,10 +42,14 @@ export default function TaskList() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'COMPLETED': return 'bg-green-100 text-green-800';
-      case 'FAILED': return 'bg-red-100 text-red-800';
-      case 'PENDING': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-blue-100 text-blue-800';
+      case 'COMPLETED':
+        return 'bg-green-100 text-green-800';
+      case 'FAILED':
+        return 'bg-red-100 text-red-800';
+      case 'PENDING':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-blue-100 text-blue-800';
     }
   };
 
@@ -66,15 +70,18 @@ export default function TaskList() {
                 <div className="flex-1 min-w-0">
                   {' '}
                   {/* Add min-w-0 to allow text truncation */}
-                  <h3 className="font-medium truncate">{task.title || 'Untitled Task'}</h3>
+                  <h3 className="font-medium truncate">{task.title || 'Not Fetched Yet'}</h3>
                   <p className="text-sm text-gray-500 truncate">{task.url}</p>
                   <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(task.status)}`}>{task.status}</span>
                 </div>
-                <span className="text-sm text-gray-500 shrink-0">
-                  {' '}
-                  {/* Add shrink-0 to prevent date from shrinking */}
-                  {new Date(task.createdAt).toLocaleString()}
-                </span>
+                <div className="flex flex-col items-center">
+                  <span className="text-sm text-gray-500 shrink-0">
+                    {' '}
+                    {/* Add shrink-0 to prevent date from shrinking */}
+                    {new Date(task.createdAt).toLocaleString()}
+                  </span>
+                  {task.status === 'COMPLETED' && <TaskDetail task={task} />}
+                </div>
               </div>
 
               {task.status !== 'COMPLETED' && task.status !== 'FAILED' && (
@@ -88,9 +95,6 @@ export default function TaskList() {
                   </div>
                 </div>
               )}
-
-              {/* {task.status === 'COMPLETED' && (
-              )} */}
 
               {task.error && <div className="mt-2 text-sm text-red-600">Error: {task.error}</div>}
             </div>
