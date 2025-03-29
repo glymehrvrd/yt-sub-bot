@@ -10,8 +10,8 @@ interface ApiResponse {
 }
 
 export async function createSubtitleTask(url: string, language: string = 'zh', tts: boolean = false): Promise<ApiResponse> {
-  const response = await fetch('/api/subtitle', {
-    method: 'POST',
+  const response = await fetch('/api/tasks', {
+    method: 'POST', 
     headers: {
       'Content-Type': 'application/json',
     },
@@ -32,7 +32,7 @@ export async function createSubtitleTask(url: string, language: string = 'zh', t
 
 export async function getTaskStatus(taskId: string): Promise<ApiResponse> {
   const params = new URLSearchParams({ taskId });
-  const response = await fetch(`/api/subtitle?${params.toString()}`);
+  const response = await fetch(`/api/tasks?${params.toString()}`);
 
   const data = await response.json();
   if (!response.ok || 'err' in data) {

@@ -62,6 +62,7 @@ export default function UrlForm() {
     try {
       const response = await createSubtitleTask(url, language, tts);
       setTaskId(response.data?.taskId || null);
+      setLoading(false);
     } catch (error) {
       setToast({message: error instanceof Error ? error.message : 'Request failed', type: 'error'});
       setLoading(false);

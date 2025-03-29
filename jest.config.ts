@@ -10,7 +10,10 @@ const config: Config = {
   },
   collectCoverage: true,
   coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'lcov']
+  coverageReporters: ['text', 'lcov'],
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/$1'
+  },
 };
 
 export default config;

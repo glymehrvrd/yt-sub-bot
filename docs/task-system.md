@@ -42,14 +42,10 @@ enum TaskStatus {
   - deleteTask(id)
 
 ### 3. API Endpoints
-- POST /api/subtitle
-  - Create new subtitle task
+- POST /api/tasks
+  - Create new task (including subtitle generation)
   - Parameters: url, language
   - Returns: taskId
-
-- GET /api/subtitle
-  - List all tasks or get single task status
-  - Optional parameter: taskId
 
 - GET /api/sse
   - Server-Sent Events endpoint for real-time updates
@@ -66,23 +62,6 @@ enum TaskStatus {
 - Task list with status indicators
 - Progress bars for active tasks
 - SSE client for real-time updates
-
-## Implementation Changes (SSE Migration)
-
-1. **Removed Components:**
-   - WebSocket server implementation
-   - WebSocket client code
-
-2. **Added Components:**
-   - SSE endpoint (/api/sse)
-   - EventSource client in TaskList
-   - Simplified update mechanism
-
-3. **Benefits:**
-   - Reduced server resource usage
-   - Simpler client implementation
-   - Better browser compatibility
-   - Automatic reconnection
 
 ## Testing Strategy
 - Unit tests for TaskService

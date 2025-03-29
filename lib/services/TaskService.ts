@@ -36,6 +36,27 @@ export class TaskService {
   async getTask(id: string) {
     return prisma.task.findUnique({ where: { id } });
   }
+  
+  /**
+   * 获取任务列表
+   * @param limit 返回的最大任务数
+   * @returns 任务数组
+   */
+  async getTasks(limit: number = 20) {
+    return prisma.task.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: limit
+    });
+  }
+  
+  /**
+   * 删除任务
+   * @param id 任务ID
+   * @returns 被删除的任务
+   */
+  async deleteTask(id: string) {
+    return prisma.task.delete({ where: { id } });
+  }
 
   /**
    * Update task status and progress

@@ -43,4 +43,20 @@ describe('TaskService', () => {
     expect(failedTask.status).toBe('FAILED');
     expect(failedTask.error).toBe('Test error');
   });
+
+  it('should get tasks list', async () => {
+    await taskService.createTask('https://youtube.com/watch?v=test1');
+    await taskService.createTask('https://youtube.com/watch?v=test2');
+    const tasks = await taskService.getTasks();
+    expect(tasks.length).toBeGreaterThanOrEqual(2);
+    expect(tasks[0].createdAt.getTime()).toBeGreaterThanOrEqual(tasks[1].createdAt.getTime());
+  });
+
+  it('should delete a task', async () => {
+    const task = await taskService.createTask('https://youtube.com/watch?v=test');
+    const deletedTask = await taskService.deleteTask(task.id);
+    expect(deletedTask.id).toBe(task.id);
+    const foundTask = await taskService.getTask(task.id);
+    expect(foundTask).toBeNull();
+  });
 });

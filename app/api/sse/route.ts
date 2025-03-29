@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { TaskService } from '@/lib/services/TaskService';
 
-const prisma = new PrismaClient();
+const taskService = new TaskService();
 
 export async function GET(request: NextRequest) {
   const headers = new Headers({
@@ -18,10 +18,7 @@ export async function GET(request: NextRequest) {
 
   // Set up polling to send updates
   const interval = setInterval(async () => {
-    const tasks = await prisma.task.findMany({
-      orderBy: { updatedAt: 'desc' },
-      take: 20
-    });
+    const tasks = await taskService.getTasks(20);
     writer.write(new TextEncoder().encode(`event: update\ndata: ${JSON.stringify(tasks)}\n\n`));
   }, 2000); // Update every 2 seconds
 
