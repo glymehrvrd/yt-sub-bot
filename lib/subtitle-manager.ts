@@ -153,12 +153,12 @@ export class SubtitleManager {
     return;
   }
 
-  async query(videoId: string, language: string): Promise<QuerySubtitleResponse> {
+  async query(videoId: string, language: string): Promise<QuerySubtitleResponse | null> {
     // Read subtitle from cache
     const cachePath = this.getCachePath(videoId);
     const cachedResult = await this.readCache(cachePath, language);
     if (!cachedResult) {
-      throw new Error(`Subtitle not found in cache, videoId: ${videoId}, language: ${language}`);
+      return null;
     }
     return cachedResult;
   }

@@ -9,16 +9,31 @@ export default function TaskList() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Initial fetch
-    fetchTasks();
-
     // Set up SSE connection
-    const eventSource = new EventSource('/api/sse');
+    const eventSource = new EventSource('/api/tasks');
 
     eventSource.addEventListener('update', (event) => {
       const data = JSON.parse(event.data);
-      // setTasks(data);
+      setTasks((prevTasks) => {
+        // 合并更新，保留未变化的任务
+        const updatedTasks = [...prevTasks];
+        data.forEach((updatedTask: Task) => {
+          const index = updatedTasks.findIndex((t) => t.id === updatedTask.id);
+          if (index >= 0) {
+            // 更新现有任务
+            updatedTasks[index] = updatedTask;
+          } else {
+            // 添加新任务
+            updatedTasks.unshift(updatedTask);
+          }
+        });
+        return updatedTasks;
+      });
     });
+
+    eventSource.onopen = () => {
+      setLoading(false);
+    };
 
     eventSource.onerror = () => {
       eventSource.close();
@@ -28,17 +43,6 @@ export default function TaskList() {
       eventSource.close();
     };
   }, []);
-
-  const fetchTasks = async () => {
-    try {
-      const response = await fetch('/api/tasks');
-      const tasks = await response.json();
-      setTasks(tasks);
-      setLoading(false);
-    } catch (error) {
-      console.error('Failed to fetch tasks:', error);
-    }
-  };
 
   const getStatusColor = (status: string) => {
     switch (status) {

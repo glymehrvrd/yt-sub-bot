@@ -51,15 +51,18 @@ enum TaskStatus {
   - Parameters: url, language
   - Returns: taskId
 
-- GET /api/sse
+- GET /api/tasks
   - Server-Sent Events endpoint for real-time updates
-  - Returns: Task updates every 2 seconds
+  - Returns: Only changed tasks (incremental updates)
+  - Optimization: Compares with last sent state, only sends differences
+  - Update frequency: Every 2 seconds
 
 ### 4. Real-time Updates
 - Uses Server-Sent Events (SSE) instead of WebSocket
 - More efficient for one-way server->client updates
 - Automatic reconnection handling
 - Browser-native EventSource API
+- Optimized updates: Only sends changed tasks to reduce bandwidth
 
 ### 5. Frontend Components
 - Task submission form

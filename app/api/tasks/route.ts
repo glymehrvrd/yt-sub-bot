@@ -1,34 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TaskService } from '@/lib/services/TaskService';
 import { SubtitleManager } from '@/lib/subtitle-manager';
+import { Task } from '@/app/types/task';
 
 const taskService = new TaskService();
 
 export async function GET(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams;
-    const taskId = searchParams.get('taskId');
+  const headers = new Headers({
+    'Content-Type': 'text/event-stream',
+    Connection: 'keep-alive',
+    'Cache-Control': 'no-cache',
+  });
 
-    if (taskId) {
-      // Get single task
-      const task = await taskService.getTask(taskId);
+  let lastTasks: Task[] = [];
 
-      if (!task) {
-        return NextResponse.json({ err: 'Task not found' }, { status: 404 });
-      }
-      return NextResponse.json(await TaskService.convertTaskDTO(task));
-    } else {
-      // List all tasks (sorted by creation date, newest first)
-      const tasks = await taskService.getTasks(20);
-      return NextResponse.json(await Promise.all(tasks.map(TaskService.convertTaskDTO)));
+  const stream = new TransformStream();
+  const writer = stream.writable.getWriter();
+
+  // Send initial connection message
+  writer.write(new TextEncoder().encode('event: connected\ndata: {}\n\n'));
+
+  const pollTasks = async () => {
+    const tasks = await Promise.all((await taskService.getTasks(20)).map(TaskService.convertTaskDTO));
+    // Find changed tasks
+    const changedTasks = tasks.filter((task) => {
+      const lastTask = lastTasks.find((t) => t.id === task.id);
+      return !lastTask || JSON.stringify(lastTask) !== JSON.stringify(task);
+    });
+
+    if (changedTasks.length > 0) {
+      writer.write(new TextEncoder().encode(`event: update\ndata: ${JSON.stringify(changedTasks)}\n\n`));
+      lastTasks = tasks; // Update last tasks
     }
-  } catch (error) {
-    console.error('Error processing request:', error);
-    return NextResponse.json(
-      { err: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
-    );
-  }
+  };
+
+  // Run immediately
+  await pollTasks();
+
+  // Then set up interval
+  const interval = setInterval(pollTasks, 2000);
+
+  // Clean up on client disconnect
+  request.signal.onabort = () => {
+    clearInterval(interval);
+    writer.close();
+  };
+
+  return new Response(stream.readable, { headers });
 }
 
 export async function POST(request: NextRequest) {

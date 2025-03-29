@@ -1,5 +1,6 @@
 export interface Task {
   id: string;
+  videoId: string;
   url: string;
   title?: string;
   status: string;

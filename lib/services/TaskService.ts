@@ -48,7 +48,7 @@ export class TaskService {
    */
   async getTasks(limit: number = 20) {
     return prisma.task.findMany({
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'asc' },
       take: limit,
     });
   }
@@ -131,16 +131,16 @@ export class TaskService {
     // 使用SubtitleManager获取字幕
     const subtitleManager = new SubtitleManager();
     const subtitleResponse = await subtitleManager.query(task.videoId, task.language);
-    const subtitle = subtitleResponse.subtitle;
     return {
-      id: task.videoId,
+      id: task.id,
+      videoId: task.videoId,
       url: task.url,
       title: task.title || 'Not Fetched Yet',
       status: task.status,
       progress: task.progress,
       createdAt: task.createdAt.toISOString(),
-      subtitle: subtitle,
-      language: subtitleResponse.language,
+      subtitle: subtitleResponse?.subtitle || '',
+      language: subtitleResponse?.language || '',
       originalLanguage: task.language,
       audioPath: '',
       error: task.error ?? undefined,
