@@ -143,7 +143,7 @@ export class TaskService {
       language: subtitleResponse?.language || '',
       originalLanguage: task.language,
       audioPath: '',
-      error: task.error ?? undefined,
+      error: task.error,
     };
   }
 }
