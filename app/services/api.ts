@@ -4,18 +4,22 @@ interface ApiResponse {
   err?: string;
   data?: {
     files?: FileData[];
+    taskId?: string;
+    task?: any;
   };
 }
 
-export async function fetchSubtitle(url: string, language: string = 'en', tts: boolean = false): Promise<ApiResponse> {
-  const params = new URLSearchParams({
-    url: url,
-    language: language,
-    tts: tts.toString(),
-  });
-
-  const response = await fetch(`/api/subtitle?${params.toString()}`, {
-    method: 'GET',
+export async function createSubtitleTask(url: string, language: string = 'zh', tts: boolean = false): Promise<ApiResponse> {
+  const response = await fetch('/api/subtitle', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      url,
+      language,
+      tts
+    }),
   });
 
   const data = await response.json();
@@ -24,4 +28,41 @@ export async function fetchSubtitle(url: string, language: string = 'en', tts: b
   }
 
   return data;
+}
+
+export async function getTaskStatus(taskId: string): Promise<ApiResponse> {
+  const params = new URLSearchParams({ taskId });
+  const response = await fetch(`/api/subtitle?${params.toString()}`);
+
+  const data = await response.json();
+  if (!response.ok || 'err' in data) {
+    throw new Error(data.err || 'Network response was not ok');
+  }
+
+  return data;
+}
+
+export function setupWebSocket(taskId: string, onUpdate: (data: any) => void) {
+  const ws = new WebSocket(`ws://localhost:8080`);
+
+  ws.onopen = () => {
+    console.log('WebSocket connected');
+  };
+
+  ws.onmessage = (event) => {
+    const message = JSON.parse(event.data);
+    if (message.data?.id === taskId) {
+      onUpdate(message.data);
+    }
+  };
+
+  ws.onerror = (error) => {
+    console.error('WebSocket error:', error);
+  };
+
+  ws.onclose = () => {
+    console.log('WebSocket disconnected');
+  };
+
+  return () => ws.close();
 }

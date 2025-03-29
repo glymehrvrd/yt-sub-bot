@@ -32,3 +32,4 @@ dist-ssr
 .cache/
 coverage/
 output/
+prisma/dev.db

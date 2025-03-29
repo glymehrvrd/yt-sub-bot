@@ -1,0 +1,35 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Task {
+  id           String     @id @default(uuid())
+  videoId      String
+  url          String
+  title        String?
+  status       TaskStatus
+  progress     Int        @default(0)
+  language     String     @default("zh")
+  error        String?
+  subtitlePath String?
+  audioPath    String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+enum TaskStatus {
+  PENDING
+  DOWNLOADING
+  TRANSLATING
+  GENERATING_AUDIO
+  COMPLETED
+  FAILED
+}

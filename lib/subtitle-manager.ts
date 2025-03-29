@@ -5,6 +5,7 @@ import { Translator } from './translator';
 import { TencentTranslator, OpenAITranslator } from './translator';
 import { logger } from './utils';
 import { generateAudioFromText } from './tts';
+import { TaskService, TaskStatus } from './services/TaskService';
 
 const log = logger('subtitle-manager');
 
@@ -13,6 +14,7 @@ export interface GetSubtitleOptions {
   language?: string;
   cookieContents?: string;
   tts?: boolean;
+  taskId?: string;
 }
 
 interface SubtitleVersion {
@@ -43,8 +45,13 @@ export async function getVideoId(url: string): Promise<string> {
 export class SubtitleManager {
   private cacheDir: string;
   private translator: Translator;
+  private taskService?: TaskService;
 
-  constructor(cacheDir: string = path.join(process.cwd(), '.cache', 'subtitles'), useOpenAI: boolean = true) {
+  constructor(
+    cacheDir: string = path.join(process.cwd(), '.cache', 'subtitles'), 
+    useOpenAI: boolean = true,
+    taskService?: TaskService
+  ) {
     this.cacheDir = cacheDir;
     this.translator = useOpenAI
       ? new OpenAITranslator({
@@ -56,6 +63,7 @@ export class SubtitleManager {
         secretId: process.env.SECRET_ID || '',
         secretKey: process.env.SECRET_KEY || '',
       });
+    this.taskService = taskService;
   }
 
   private async ensureCacheDir(): Promise<void> {
@@ -92,17 +100,34 @@ export class SubtitleManager {
     const videoId = await getVideoId(options.url);
     const language = options.language || 'zh';
 
-    let response = await this.getTitleAndSubtitle(videoId, language, options.cookieContents);
+    if (options.taskId && this.taskService) {
+      await this.taskService.updateTaskStatus(options.taskId, 'DOWNLOADING', 10);
+    }
+
+    let response = await this.getTitleAndSubtitle(videoId, language, options.cookieContents, options.taskId);
+    
     if (response.originalLanguage != language && options.tts) {
-      const audioPath = await this.tts(videoId, response.subtitle);
+      if (options.taskId && this.taskService) {
+        await this.taskService.updateTaskStatus(options.taskId, 'GENERATING_AUDIO', 80);
+      }
+      const audioPath = await this.tts(videoId, response.subtitle, options.taskId);
       response.audioPath = audioPath;
     }
+
+    if (options.taskId && this.taskService) {
+      await this.taskService.completeTask(options.taskId, undefined, response.audioPath);
+    }
+
     return response;
   }
 
-  async getTitleAndSubtitle(videoId: string, language: string, cookie?: string): Promise<SubtitleResponse> {
+  async getTitleAndSubtitle(
+    videoId: string, 
+    language: string, 
+    cookie?: string,
+    taskId?: string
+  ): Promise<SubtitleResponse> {
     const cachePath = this.getCachePath(videoId);
-
     await this.ensureCacheDir();
 
     // Try to read from cache first
@@ -113,6 +138,10 @@ export class SubtitleManager {
 
     // Download fresh subtitles
     log.info('Downloading new subtitles, videoId:', videoId);
+    if (taskId && this.taskService) {
+      await this.taskService.updateTaskStatus(taskId, 'DOWNLOADING', 20);
+    }
+
     let downloadResult: DownloadSubtitleResult;
     try {
       downloadResult = await downloadSubtitle({
@@ -141,6 +170,9 @@ export class SubtitleManager {
           });
         }
       } else {
+        if (taskId && this.taskService) {
+          await this.taskService.failTask(taskId, error instanceof Error ? error.message : 'Unknown error');
+        }
         throw error;
       }
     }
@@ -168,8 +200,12 @@ export class SubtitleManager {
       language: downloadResult.language,
       originalLanguage: downloadResult.language,
     }
+
     // Translate if needed
     if (language !== downloadResult.language) {
+      if (taskId && this.taskService) {
+        await this.taskService.updateTaskStatus(taskId, 'TRANSLATING', 50);
+      }
       log.info(`Translating subtitles from ${downloadResult.language} to ${language}`);
       const translatedSubtitle = await this.translator.translate(downloadResult.subtitle, {
         to: language,
@@ -189,7 +225,7 @@ export class SubtitleManager {
     return response;
   }
 
-  async tts(videoId: string, subtitle: string): Promise<string> {
+  async tts(videoId: string, subtitle: string, taskId?: string): Promise<string> {
     const audioDir = path.join(this.cacheDir, 'audio');
     await fs.mkdir(audioDir, { recursive: true });
     const audioPath = path.join(audioDir, `${videoId}.mp3`);
@@ -209,9 +245,11 @@ export class SubtitleManager {
       return audioPath;
     } catch (error) {
       log.error('TTS generation failed:', error);
+      if (taskId && this.taskService) {
+        await this.taskService.failTask(taskId, 'TTS generation failed');
+      }
       // Return subtitle without audio if TTS fails
     }
     return audioPath;
   }
 }
-
