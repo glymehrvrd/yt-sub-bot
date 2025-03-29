@@ -1,16 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-
-interface Task {
-  id: string;
-  url: string;
-  title?: string;
-  status: string;
-  progress: number;
-  createdAt: string;
-  error?: string;
-}
+import { Task } from '../types/task';
 
 export default function TaskList() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -22,7 +13,7 @@ export default function TaskList() {
 
     // Set up SSE connection
     const eventSource = new EventSource('/api/sse');
-    
+
     eventSource.addEventListener('update', (event) => {
       const data = JSON.parse(event.data);
       setTasks(data);
@@ -91,12 +82,15 @@ export default function TaskList() {
                     <span>{task.progress}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full" 
+                    <div
+                      className="bg-blue-600 h-2 rounded-full"
                       style={{ width: `${task.progress}%` }}
                     ></div>
                   </div>
                 </div>
+              )}
+
+              {task.status === 'COMPLETED' && (
               )}
 
               {task.error && (

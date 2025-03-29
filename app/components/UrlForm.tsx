@@ -1,55 +1,15 @@
 'use client';
 
-import { useState, useEffect, ChangeEvent } from 'react';
-import FileList from './FileList';
-import { FileData } from '../types/files';
-import { createSubtitleTask, getTaskStatus, setupWebSocket } from '../services/api';
+import { useState, ChangeEvent } from 'react';
+import { createSubtitleTask } from '../services/api';
 import Toast from './Toast';
 
 export default function UrlForm() {
   const [url, setUrl] = useState('');
   const [language, setLanguage] = useState('zh');
   const [tts, setTts] = useState(false);
-  const [files, setFiles] = useState<FileData[]>([]);
   const [loading, setLoading] = useState(false);
-  const [taskId, setTaskId] = useState<string | null>(null);
-  const [taskStatus, setTaskStatus] = useState<any>(null);
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
-
-  useEffect(() => {
-    if (!taskId) return;
-
-    const cleanup = setupWebSocket(taskId, (data) => {
-      setTaskStatus(data);
-      
-      if (data.status === 'COMPLETED') {
-        fetchTaskResult();
-      } else if (data.status === 'FAILED') {
-        setToast({message: data.error || 'Task failed', type: 'error'});
-        setLoading(false);
-      }
-    });
-
-    return cleanup;
-  }, [taskId]);
-
-  const fetchTaskResult = async () => {
-    try {
-      const response = await getTaskStatus(taskId!);
-      if (response.data?.task?.subtitlePath) {
-        setFiles([{
-          name: response.data.task.title || 'Subtitle',
-          content: '', // Will be fetched separately
-          audioPath: response.data.task.audioPath
-        }]);
-        setToast({message: 'Task completed successfully', type: 'success'});
-      }
-    } catch (error) {
-      setToast({message: error instanceof Error ? error.message : 'Failed to fetch task result', type: 'error'});
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSubmit = async () => {
     if (!url) {
@@ -58,13 +18,11 @@ export default function UrlForm() {
     }
 
     setLoading(true);
-    setTaskStatus(null);
     try {
       const response = await createSubtitleTask(url, language, tts);
-      setTaskId(response.data?.taskId || null);
       setLoading(false);
     } catch (error) {
-      setToast({message: error instanceof Error ? error.message : 'Request failed', type: 'error'});
+      setToast({message: error instanceof Error ? error.message : 'Submit task failed', type: 'error'});
       setLoading(false);
     }
   };
@@ -126,30 +84,6 @@ export default function UrlForm() {
         )}
         {loading ? 'Processing...' : 'Confirm'}
       </button>
-
-      {taskStatus && (
-        <div className="w-full bg-gray-100 rounded-md p-4">
-          <div className="flex justify-between mb-1">
-            <span className="text-sm font-medium">
-              {taskStatus.status === 'PENDING' && 'Waiting to start...'}
-              {taskStatus.status === 'DOWNLOADING' && 'Downloading subtitles...'}
-              {taskStatus.status === 'TRANSLATING' && 'Translating subtitles...'}
-              {taskStatus.status === 'GENERATING_AUDIO' && 'Generating audio...'}
-              {taskStatus.status === 'COMPLETED' && 'Completed!'}
-              {taskStatus.status === 'FAILED' && 'Failed'}
-            </span>
-            <span className="text-sm font-medium">{taskStatus.progress}%</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2.5">
-            <div 
-              className="bg-blue-600 h-2.5 rounded-full" 
-              style={{ width: `${taskStatus.progress}%` }}
-            ></div>
-          </div>
-        </div>
-      )}
-
-      {files.length > 0 && <FileList files={files} />}
     </div>
   );
 }
