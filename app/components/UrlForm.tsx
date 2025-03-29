@@ -7,22 +7,22 @@ import Toast from './Toast';
 export default function UrlForm() {
   const [url, setUrl] = useState('');
   const [language, setLanguage] = useState('zh');
-  const [tts, setTts] = useState(false);
+  const [needTTS, setNeedTTS] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const handleSubmit = async () => {
     if (!url) {
-      setToast({message: 'Please enter URL', type: 'error'});
+      setToast({ message: 'Please enter URL', type: 'error' });
       return;
     }
 
     setLoading(true);
     try {
-      const response = await createSubtitleTask(url, language, tts);
+      const response = await createSubtitleTask(url, language, needTTS);
       setLoading(false);
     } catch (error) {
-      setToast({message: error instanceof Error ? error.message : 'Submit task failed', type: 'error'});
+      setToast({ message: error instanceof Error ? error.message : 'Submit task failed', type: 'error' });
       setLoading(false);
     }
   };
@@ -64,8 +64,8 @@ export default function UrlForm() {
         <input
           type="checkbox"
           id="tts-checkbox"
-          checked={tts}
-          onChange={(e) => setTts(e.target.checked)}
+          checked={needTTS}
+          onChange={(e) => setNeedTTS(e.target.checked)}
           className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
           disabled={language !== 'zh'}
         />

@@ -14,15 +14,17 @@ export class TaskService {
    * Create a new subtitle processing task
    * @param url YouTube video URL
    * @param language Target subtitle language (default: 'zh')
+   * @param needTTS Whether TTS is needed (default: false)
    * @returns Created task object
    */
-  async createTask(url: string, language: string = 'zh') {
+  async createTask(url: string, language: string = 'zh', needTTS: boolean = false) {
     const videoId = await this.extractVideoId(url);
     return prisma.task.create({
       data: {
         videoId,
         url,
         language,
+        needTTS,
         status: 'PENDING',
       },
     });

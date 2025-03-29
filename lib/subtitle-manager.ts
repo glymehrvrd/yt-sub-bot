@@ -70,7 +70,7 @@ export class SubtitleManager {
    * @param params 任务参数
    * @param cookieContents YouTube cookie内容
    */
-  async processTask(params: { taskId: string; url: string; language: string }) {
+  async processTask(params: { taskId: string; url: string; language: string; needTTS: boolean }) {
     // Start processing task in background
     const cookiePath = path.join(process.cwd(), 'www.youtube.com_cookies.txt');
     let cookieContents = '';
@@ -92,6 +92,7 @@ export class SubtitleManager {
         language: params.language,
         taskId: params.taskId,
         cookieContents,
+        tts: params.needTTS,
       });
     } catch (error) {
       await this.taskService.failTask(params.taskId, error instanceof Error ? error.message : 'Task failed');
@@ -142,7 +143,12 @@ export class SubtitleManager {
       options.cookieContents
     );
 
-    if (originalLanguage != language && options.tts) {
+    if (originalLanguage !== language) {
+      await this.taskService.updateTaskStatus(options.taskId, 'TRANSLATING', 50);
+      await this.translate(options.taskId, videoId, subtitle, originalLanguage, language);
+    }
+
+    if (originalLanguage !== language && options.tts) {
       await this.taskService.updateTaskStatus(options.taskId, 'GENERATING_AUDIO', 80);
       const audioPath = await this.tts(videoId, subtitle, options.taskId);
     }
@@ -221,38 +227,37 @@ export class SubtitleManager {
     };
     await fs.writeFile(cachePath, JSON.stringify(cacheEntry));
 
-    let response: DownloadSubtitleResponse = {
+    return {
       title: downloadResult.title,
       subtitle: downloadResult.subtitle,
       language: downloadResult.language,
       originalLanguage: downloadResult.language,
     };
-
-    // Translate if needed
-    if (language !== downloadResult.language) {
-      if (taskId && this.taskService) {
-        await this.taskService.updateTaskStatus(taskId, 'TRANSLATING', 50);
-      }
-      log.info(`Translating subtitles from ${downloadResult.language} to ${language}`);
-      const translatedSubtitle = await this.translator.translate(downloadResult.subtitle, {
-        to: language,
-      });
-
-      // Update cache with translated version
-      cacheEntry.timestamp = Date.now();
-      cacheEntry.versions[language] = {
-        subtitle: translatedSubtitle,
-        language: language,
-        originalLanguage: downloadResult.language,
-      };
-      await fs.writeFile(cachePath, JSON.stringify(cacheEntry));
-
-      response.subtitle = translatedSubtitle;
-    }
-    return response;
   }
 
-  async tts(videoId: string, subtitle: string, taskId?: string): Promise<string> {
+  async translate(taskId: string, videoId: string, subtitle: string, originalLanguage: string, language: string) {
+    // Translate if needed
+    log.info(`Translating subtitles from ${originalLanguage} to ${language}`);
+    const translatedSubtitle = await this.translator.translate(subtitle, {
+      to: language,
+    });
+
+    // Update cache with translated version
+    let cacheEntry: CacheEntry;
+    const cachePath = this.getCachePath(videoId);
+    cacheEntry = JSON.parse(await fs.readFile(cachePath, 'utf-8'));
+    cacheEntry.timestamp = Date.now();
+    cacheEntry.versions[language] = {
+      subtitle: translatedSubtitle,
+      language: language,
+      originalLanguage: originalLanguage,
+    };
+    await fs.writeFile(cachePath, JSON.stringify(cacheEntry));
+
+    return translatedSubtitle;
+  }
+
+  async tts(videoId: string, subtitle: string, taskId: string): Promise<string> {
     const audioDir = path.join(this.cacheDir, 'audio');
     await fs.mkdir(audioDir, { recursive: true });
     const audioPath = path.join(audioDir, `${videoId}.mp3`);
@@ -272,9 +277,7 @@ export class SubtitleManager {
       return audioPath;
     } catch (error) {
       log.error('TTS generation failed:', error);
-      if (taskId && this.taskService) {
-        await this.taskService.failTask(taskId, 'TTS generation failed');
-      }
+      await this.taskService.failTask(taskId, 'TTS generation failed');
       // Return subtitle without audio if TTS fails
     }
     return audioPath;

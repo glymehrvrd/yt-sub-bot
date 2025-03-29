@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TaskService } from '@/lib/services/TaskService';
 import { SubtitleManager } from '@/lib/subtitle-manager';
-import fs from 'fs/promises';
-import path from 'path';
 import { Task as TaskDTO } from '@/app/types/task';
 import { Task } from '@prisma/client';
 
@@ -12,7 +10,7 @@ function convertTaskDTO(task: Task): TaskDTO {
   return {
     id: task.id,
     url: task.url,
-    title: task.title || undefined,
+    title: task.title || 'Not Fetched Yet',
     status: task.status,
     progress: task.progress,
     createdAt: task.createdAt.toISOString(),
@@ -50,16 +48,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { url, language = 'zh' } = await request.json();
+    const { url, language = 'zh', needTTS = false } = await request.json();
 
     // Create task
-    const task = await taskService.createTask(url, language);
+    const task = await taskService.createTask(url, language, needTTS);
 
     const subtitleManager = new SubtitleManager();
     subtitleManager.processTask({
       taskId: task.id,
       url,
       language,
+      needTTS,
     });
 
     return NextResponse.json({ taskId: task.id });

@@ -19,6 +19,7 @@ model Task {
   progress     Int        @default(0)
   language     String     @default("zh")
   error        String?
+  needTTS      Boolean    @default(false) // 是否需要TTS语音合成
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 }

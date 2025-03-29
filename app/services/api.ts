@@ -9,16 +9,20 @@ interface ApiResponse {
   };
 }
 
-export async function createSubtitleTask(url: string, language: string = 'zh', tts: boolean = false): Promise<ApiResponse> {
+export async function createSubtitleTask(
+  url: string,
+  language: string = 'zh',
+  needTTS: boolean = false
+): Promise<ApiResponse> {
   const response = await fetch('/api/tasks', {
-    method: 'POST', 
+    method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       url,
       language,
-      tts
+      needTTS,
     }),
   });
 
