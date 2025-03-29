@@ -30,11 +30,10 @@ describe('TaskService', () => {
 
   it('should complete a task', async () => {
     const task = await taskService.createTask('https://youtube.com/watch?v=test');
-    const completedTask = await taskService.completeTask(task.id, '/path/to/subtitle.srt', '/path/to/audio.mp3');
+    const completedTask = await taskService.completeTask(task.id, 'title');
     expect(completedTask.status).toBe('COMPLETED');
     expect(completedTask.progress).toBe(100);
-    expect(completedTask.subtitlePath).toBe('/path/to/subtitle.srt');
-    expect(completedTask.audioPath).toBe('/path/to/audio.mp3');
+    expect(completedTask.title).toBe('title');
   });
 
   it('should fail a task', async () => {

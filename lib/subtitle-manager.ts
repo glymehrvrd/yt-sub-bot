@@ -2,7 +2,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { downloadSubtitle, DownloadSubtitleResult, YoutubeTranscriptNotAvailableLanguageError } from './downloader';
 import { Translator } from './translator';
-import { TencentTranslator, OpenAITranslator } from './translator';
+import { OpenAITranslator } from './translator';
 import { logger } from './utils';
 import { generateAudioFromText } from './tts';
 import { TaskService } from './services/TaskService';
@@ -51,20 +51,14 @@ export class SubtitleManager {
 
   constructor(
     cacheDir: string = path.join(process.cwd(), '.cache', 'subtitles'),
-    useOpenAI: boolean = true,
     taskService: TaskService = new TaskService()
   ) {
     this.cacheDir = cacheDir;
-    this.translator = useOpenAI
-      ? new OpenAITranslator({
-          baseURL: process.env.OPENAI_BASE_URL,
-          apiKey: process.env.OPENAI_API_KEY,
-          model: process.env.OPENAI_MODEL,
-        })
-      : new TencentTranslator({
-          secretId: process.env.SECRET_ID || '',
-          secretKey: process.env.SECRET_KEY || '',
-        });
+    this.translator = new OpenAITranslator({
+      baseURL: process.env.OPENAI_BASE_URL,
+      apiKey: process.env.OPENAI_API_KEY,
+      model: process.env.OPENAI_MODEL,
+    });
     this.taskService = taskService;
   }
 
