@@ -1,6 +1,22 @@
-import { countChineseChars, splitText, tts, generateAudioFromText } from '../lib/tts';
+import { countChineseChars, splitText, generateAudioFromText } from '../lib/tts';
 import path from 'path';
 import * as fs from 'fs';
+
+// Mock the tencentcloud TTS client
+jest.mock('tencentcloud-sdk-nodejs-tts', () => {
+  return {
+    tts: {
+      v20190823: {
+        Client: jest.fn().mockImplementation(() => {
+          return {
+            TextToVoice: jest.fn().mockResolvedValue({ Audio: 'AAAAAA==' }), // Return fake base64 PCM data
+          };
+        }),
+      },
+    },
+  };
+});
+
 
 describe('countChineseChars', () => {
   it('should count Chinese characters correctly', () => {

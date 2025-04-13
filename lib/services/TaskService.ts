@@ -48,7 +48,7 @@ export class TaskService {
    */
   async getTasks(limit: number = 20) {
     return prisma.task.findMany({
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: 'desc' },
       take: limit,
     });
   }
@@ -143,7 +143,7 @@ export class TaskService {
       language: subtitleResponse?.language || '',
       originalLanguage: task.language,
       audioPath: '',
-      error: task.error,
+      error: task.error ?? undefined,
     };
   }
 }
