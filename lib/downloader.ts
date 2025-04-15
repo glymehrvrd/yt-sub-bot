@@ -105,11 +105,18 @@ function retrieveVideoId(videoId: string) {
   if (videoId.length === 11) {
     return videoId;
   }
-  const matchId = videoId.match(RE_YOUTUBE);
-  if (matchId && matchId.length) {
-    return matchId[1];
+  // If it looks like a URL, try to extract the ID
+  if (videoId.includes('youtube.com') || videoId.includes('youtu.be')) {
+      const matchId = videoId.match(RE_YOUTUBE);
+      if (matchId && matchId.length) {
+          return matchId[1];
+      } else {
+          // It looked like a URL but regex failed
+          throw new YoutubeTranscriptError('Impossible to retrieve Youtube video ID from URL.');
+      }
   }
-  throw new YoutubeTranscriptError('Impossible to retrieve Youtube video ID.');
+  // If not 11 chars and not a URL, assume it's a direct ID (for testing or other cases)
+  return videoId;
 }
 
 // Main functions
@@ -210,14 +217,19 @@ async function fetchTranscript(videoId: string, config?: TranscriptConfig): Prom
 
 export async function downloadSubtitle({
   videoId,
-  language: language = 'zh',
+  language, // Removed default 'zh'
   cookieContents,
 }: DownloadSubtitleOptions): Promise<DownloadSubtitleResult> {
   log.info('Starting subtitle download');
-  const transcript = await fetchTranscript(videoId, {
-    language: language,
-    cookies: cookieContents ? parseCookies(cookieContents) : undefined,
-  });
+  const fetchConfig: TranscriptConfig = {
+      cookies: cookieContents ? parseCookies(cookieContents) : undefined,
+  };
+  // Only add language to config if explicitly provided in options
+  // Otherwise, fetchTranscript will use its default (first available track)
+  if (language) {
+      fetchConfig.language = language;
+  }
+  const transcript = await fetchTranscript(videoId, fetchConfig);
 
   const paragraphList: string[] = [];
   let currentParagraph = '';
@@ -247,6 +259,6 @@ export async function downloadSubtitle({
   return {
     title: transcript.title,
     subtitle: paragraphList.join('\n'),
-    language: language,
+    language: transcript.transcriptions[0]?.language || 'unknown', // Use language from fetched transcript
   };
 }

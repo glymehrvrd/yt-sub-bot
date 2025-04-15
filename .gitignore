@@ -28,8 +28,9 @@ dist-ssr
 .next
 *_cookies.txt
 *.pyc
+
 .env
 .cache/
 coverage/
 output/
-prisma/dev.db
+prisma/dev.sqlite

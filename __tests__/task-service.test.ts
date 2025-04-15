@@ -1,12 +1,22 @@
 import { PrismaClient } from '@prisma/client';
 import { TaskService } from '../lib/services/TaskService';
+import { execSync } from 'child_process'; // Import execSync
 
 const prisma = new PrismaClient();
 
 describe('TaskService', () => {
   let taskService: TaskService;
 
-  beforeAll(async () => {
+  beforeAll(() => {
+    // Ensure the test database schema is applied before tests run
+    try {
+      console.log('Applying database schema for task-service tests...');
+      execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
+      console.log('Database schema applied.');
+    } catch (error) {
+      console.error('Failed to apply database schema:', error);
+      throw error; // Fail fast if db setup fails
+    }
     taskService = new TaskService();
   });
 
