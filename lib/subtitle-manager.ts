@@ -269,7 +269,7 @@ export class SubtitleManager {
     try {
       const audioStats = await fs.stat(audioPath);
       if (audioStats.isFile()) {
-        log.info('Found cached audio file');
+        log.info('Found cached audio file: ', audioPath);
         return audioPath;
       }
     } catch (error) {

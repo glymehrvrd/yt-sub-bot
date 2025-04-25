@@ -1,5 +1,5 @@
 import { SubtitleManager } from '../lib/subtitle-manager';
-import { downloadSubtitle } from '../lib/downloader';
+import { downloadSubtitle, YoutubeTranscriptNotAvailableLanguageError } from '../lib/downloader';
 import { TaskService } from '../lib/services/TaskService';
 import { OpenAITranslator } from '../lib/translator';
 import { generateAudioFromText } from '../lib/tts';
@@ -192,12 +192,58 @@ describe('SubtitleManager', () => {
       });
     });
   });
-
   describe('downloadSubtitle', () => {
-    it.skip('should fallback to English when requested language not available - known issue with implementation', async () => {
-      // This test is skipped because the current implementation doesn't properly handle
-      // the fallback case when a language is not available
-      // TODO: Fix implementation and re-enable this test
+    it('should fallback to English when requested language not available', async () => {
+      const videoId = 'dQw4w9WgXcQ1';
+      const taskId = 'task-1';
+      const cookie = 'cookie';
+
+      // First attempt with requested language fails
+      mockDownloadSubtitle.mockRejectedValueOnce(
+        new YoutubeTranscriptNotAvailableLanguageError("fr", ["en"], videoId));
+
+      // Mock cache is not found
+      mockFs.readFile.mockRejectedValue(new Error('File not found'));
+
+      // Second attempt with English succeeds
+      mockDownloadSubtitle.mockResolvedValueOnce({
+        title: 'Test Video',
+        subtitle: 'test subtitle',
+        language: 'en'
+      });
+
+      const result = await manager.downloadSubtitle(
+        videoId,
+        'fr', // Requested language not available
+        taskId,
+        cookie
+      );
+
+      expect(result).toEqual({
+        title: 'Test Video',
+        subtitle: 'test subtitle',
+        language: 'en'
+      });
+      expect(mockDownloadSubtitle).toHaveBeenCalledTimes(2);
+      expect(mockDownloadSubtitle).toHaveBeenCalledWith(
+        expect.objectContaining({
+          videoId,
+          language: 'fr',
+          cookieContents: cookie
+        })
+      );
+      expect(mockDownloadSubtitle).toHaveBeenCalledWith(
+        expect.objectContaining({
+          videoId,
+          language: 'en',
+          cookieContents: cookie
+        })
+      );
+      expect(mockTaskService.prototype.updateTaskStatus).toHaveBeenCalledWith(
+        taskId,
+        'DOWNLOADING',
+        expect.any(Number)
+      );
     });
   });
 

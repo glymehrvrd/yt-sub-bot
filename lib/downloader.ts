@@ -217,7 +217,7 @@ async function fetchTranscript(videoId: string, config?: TranscriptConfig): Prom
 
 export async function downloadSubtitle({
   videoId,
-  language, // Removed default 'zh'
+  language,
   cookieContents,
 }: DownloadSubtitleOptions): Promise<DownloadSubtitleResult> {
   log.info('Starting subtitle download');
