@@ -58,7 +58,7 @@ describe('TaskService', () => {
     await taskService.createTask('https://youtube.com/watch?v=test2');
     const tasks = await taskService.getTasks();
     expect(tasks.length).toBeGreaterThanOrEqual(2);
-    expect(tasks[0].createdAt.getTime()).toBeGreaterThanOrEqual(tasks[1].createdAt.getTime());
+    expect(tasks[0].createdAt.getTime()).toBeLessThanOrEqual(tasks[1].createdAt.getTime());
   });
 
   it('should delete a task', async () => {

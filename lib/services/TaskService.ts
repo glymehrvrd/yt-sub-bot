@@ -48,7 +48,7 @@ export class TaskService {
    */
   async getTasks(limit: number = 20) {
     return prisma.task.findMany({
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'asc' },
       take: limit,
     });
   }

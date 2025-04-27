@@ -1,5 +1,7 @@
 import { logger } from '@/lib/utils';
 import { decodeXML } from 'entities';
+import fetch from 'node-fetch'
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 interface CaptionTrack {
   languageCode: string;
@@ -107,13 +109,13 @@ function retrieveVideoId(videoId: string) {
   }
   // If it looks like a URL, try to extract the ID
   if (videoId.includes('youtube.com') || videoId.includes('youtu.be')) {
-      const matchId = videoId.match(RE_YOUTUBE);
-      if (matchId && matchId.length) {
-          return matchId[1];
-      } else {
-          // It looked like a URL but regex failed
-          throw new YoutubeTranscriptError('Impossible to retrieve Youtube video ID from URL.');
-      }
+    const matchId = videoId.match(RE_YOUTUBE);
+    if (matchId && matchId.length) {
+      return matchId[1];
+    } else {
+      // It looked like a URL but regex failed
+      throw new YoutubeTranscriptError('Impossible to retrieve Youtube video ID from URL.');
+    }
   }
   // If not 11 chars and not a URL, assume it's a direct ID (for testing or other cases)
   return videoId;
@@ -128,7 +130,12 @@ async function fetchTranscript(videoId: string, config?: TranscriptConfig): Prom
     hasCookies: !!config?.cookies,
   });
 
+
+  const proxy = process.env.https_proxy || process.env.http_proxy;
+  const proxyAgent = proxy ? new HttpsProxyAgent(proxy) : undefined;
+
   const videoPageResponse = await fetch(`https://www.youtube.com/watch?v=${identifier}`, {
+    agent: proxyAgent,
     headers: {
       ...(config?.language && { 'Accept-Language': config.language }),
       ...(config?.cookies && { Cookie: config.cookies }),
@@ -188,6 +195,7 @@ async function fetchTranscript(videoId: string, config?: TranscriptConfig): Prom
   ).baseUrl;
 
   const transcriptResponse = await fetch(transcriptURL, {
+    agent: proxyAgent,
     headers: {
       ...(config?.language && { 'Accept-Language': config.language }),
       ...(config?.cookies && { Cookie: config.cookies }),
@@ -222,12 +230,12 @@ export async function downloadSubtitle({
 }: DownloadSubtitleOptions): Promise<DownloadSubtitleResult> {
   log.info('Starting subtitle download');
   const fetchConfig: TranscriptConfig = {
-      cookies: cookieContents ? parseCookies(cookieContents) : undefined,
+    cookies: cookieContents ? parseCookies(cookieContents) : undefined,
   };
   // Only add language to config if explicitly provided in options
   // Otherwise, fetchTranscript will use its default (first available track)
   if (language) {
-      fetchConfig.language = language;
+    fetchConfig.language = language;
   }
   const transcript = await fetchTranscript(videoId, fetchConfig);
 
