@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { TaskService } from '@/lib/services/TaskService';
 import { SubtitleManager } from '@/lib/subtitle-manager';
 import { Task } from '@/app/types/task';
+import { logger } from '@/lib/utils';
 
+const log = logger('route');
 const taskService = new TaskService();
 
 export async function GET(request: NextRequest) {
@@ -21,7 +23,7 @@ export async function GET(request: NextRequest) {
   writer.write(new TextEncoder().encode('event: connected\ndata: {}\n\n'));
 
   const pollTasks = async () => {
-    const tasks = await Promise.all((await taskService.getTasks(20)).map(TaskService.convertTaskDTO));
+    const tasks = await Promise.all(await taskService.getTasks(20));
     // Find changed tasks
     const changedTasks = tasks.filter((task) => {
       const lastTask = lastTasks.find((t) => t.id === task.id);
@@ -29,8 +31,9 @@ export async function GET(request: NextRequest) {
     });
 
     if (changedTasks.length > 0) {
+      log.debug(`found ${changedTasks.length} changed tasks`);
       writer.write(new TextEncoder().encode(`event: update\ndata: ${JSON.stringify(changedTasks)}\n\n`));
-      lastTasks = tasks; // Update last tasks
+      lastTasks = await Promise.all(tasks.map(TaskService.convertTaskDTO)); // Update last tasks
     }
   };
 

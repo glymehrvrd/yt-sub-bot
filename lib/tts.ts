@@ -1,8 +1,7 @@
 import * as tencentcloud from "tencentcloud-sdk-nodejs-tts";
 import fs from 'fs/promises';
 import path from 'path';
-import { spawn, ChildProcess } from 'child_process';
-import ffmpeg from 'ffmpeg-static';
+import { spawn, ChildProcess, execSync } from 'child_process';
 import { logger } from './utils';
 
 const log = logger('tts');
@@ -87,10 +86,13 @@ export async function tts(text: string, sid: string) {
 async function convertPcmToMp3(inputPath: string, outputPath: string): Promise<void> {
     log.info('Converting PCM to MP3...');
     await new Promise((resolve, reject) => {
-        if (!ffmpeg) {
-            throw new Error('FFmpeg not found');
+        let ffmpegPath: string;
+        try {
+            ffmpegPath = execSync('which ffmpeg').toString().trim();
+        } catch (e) {
+            throw new Error('FFmpeg not found in PATH - please install ffmpeg');
         }
-        const ffmpegProcess: ChildProcess = spawn(ffmpeg, [
+        const ffmpegProcess: ChildProcess = spawn(ffmpegPath, [
             '-y',  // Add force overwrite flag
             '-f', 's16le',
             '-ar', '16000',

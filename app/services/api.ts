@@ -1,11 +1,7 @@
-import { FileData } from '../types/files';
-
 interface ApiResponse {
   err?: string;
   data?: {
-    files?: FileData[];
     taskId?: string;
-    task?: any;
   };
 }
 
